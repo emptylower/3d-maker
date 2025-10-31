@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+output/
+data/
+playwright-report/
+blob-report/
+test-results/
+.env.local
+docs/
+tmp_overview.html

@@ -1,0 +1,230 @@
+openapi: 3.1.0
+info:
+  title: Hitem3D 建模广场 后端 API（MVP）
+  version: 0.1.0
+  description: 后端服务接口定义，覆盖积分、建模任务、广场与管理操作。
+servers:
+  - url: https://{vercel-deployment-domain}
+    variables:
+      vercel-deployment-domain:
+        default: example.vercel.app
+security:
+  - supabaseAuth: []
+components:
+  securitySchemes:
+    supabaseAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+    Wallet:
+      type: object
+      properties:
+        user_id: { type: string, format: uuid }
+        balance: { type: integer }
+    Ledger:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        delta: { type: integer }
+        reason: { type: string, enum: [register_bonus, purchase, model_task, refund, admin_adjust] }
+        external_ref: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+    ModelingTask:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, processing, succeeded, failed] }
+        hitem_task_id: { type: string, nullable: true }
+        hitem_model_urls: { type: object, additionalProperties: true, nullable: true }
+        created_at: { type: string, format: date-time }
+    ShowcasePost:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        task_id: { type: string, format: uuid, nullable: true }
+        title: { type: string }
+        description: { type: string }
+        asset_url: { type: string, format: uri }
+        status: { type: string, enum: [published, removed] }
+        created_at: { type: string, format: date-time }
+paths:
+  /api/healthz:
+    get:
+      summary: 健康检查
+      responses:
+        '200': { description: OK }
+
+  /api/credits/wallet:
+    get:
+      summary: 查询当前用户钱包余额
+      security: [ { supabaseAuth: [] } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wallet' }
+        '401': { description: 未登录, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /api/credits/checkout-session:
+    post:
+      summary: 创建 Stripe Checkout Session（购买积分）
+      security: [ { supabaseAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                package_id: { type: string }
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkout_url: { type: string, format: uri }
+        '400': { description: 参数错误 }
+        '401': { description: 未登录 }
+
+  /api/stripe/webhook:
+    post:
+      summary: Stripe Webhook 回调（购买成功入账）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: 已处理 }
+        '400': { description: 验签失败/参数错误 }
+
+  /api/modeling/tasks:
+    post:
+      summary: 创建建模任务（扣积分→提交 Hitem3D）
+      security: [ { supabaseAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                request_type: { type: integer, enum: [1,2,3] }
+                model: { type: string }
+                resolution: { type: integer }
+                face: { type: integer, nullable: true }
+                format: { type: integer, enum: [1,2,3,4], nullable: true }
+                images: { type: array, items: { type: string, format: uri }, nullable: true }
+                multi_images: { type: array, items: { type: string, format: uri }, nullable: true }
+                mesh_url: { type: string, format: uri, nullable: true }
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelingTask' }
+        '400': { description: 参数错误/余额不足 }
+        '401': { description: 未登录 }
+
+  /api/modeling/tasks/{id}:
+    get:
+      summary: 查询任务详情（当前用户）
+      security: [ { supabaseAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ModelingTask' } } } }
+        '404': { description: 不存在/无权限 }
+
+  /api/modeling/callback:
+    post:
+      summary: Hitem3D 回调（任务状态更新）
+      description: 需配置 `callback_url` 指向该路径。建议附带签名校验 token。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: 已处理 }
+        '400': { description: 参数错误 }
+
+  /api/showcase/posts:
+    get:
+      summary: 广场列表（公开）
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: page_size
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ShowcasePost' }
+                  total: { type: integer }
+    post:
+      summary: 创建帖子（登录）
+      security: [ { supabaseAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                task_id: { type: string, format: uuid, nullable: true }
+                title: { type: string }
+                description: { type: string }
+                asset_url: { type: string, format: uri }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ShowcasePost' } } } }
+        '401': { description: 未登录 }
+
+  /api/showcase/posts/{id}:
+    get:
+      summary: 帖子详情（公开）
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ShowcasePost' } } } }
+        '404': { description: 不存在/已移除 }
+    delete:
+      summary: 管理员下架帖子
+      security: [ { supabaseAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: 已移除 }
+        '403': { description: 非管理员 }
+        '404': { description: 不存在 }
+

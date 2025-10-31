@@ -1,0 +1,71 @@
+[
+  {
+    "path": "markdown/overview.md",
+    "title": "产品概述",
+    "source": "https://docs.hitem3d.ai/zh/api/api-reference/overview",
+    "chunk_ids": [
+      "overview-chunk-01"
+    ]
+  },
+  {
+    "path": "markdown/list.md",
+    "title": "接口明细",
+    "source": "https://docs.hitem3d.ai/zh/api/api-reference/list/",
+    "chunk_ids": [
+      "list-chunk-01"
+    ]
+  },
+  {
+    "path": "markdown/list-create-task.md",
+    "title": "创建任务接口",
+    "source": "https://docs.hitem3d.ai/zh/api/api-reference/list/create-task",
+    "chunk_ids": [
+      "list-create-task-chunk-01",
+      "list-create-task-chunk-02",
+      "list-create-task-chunk-03",
+      "list-create-task-chunk-04",
+      "list-create-task-chunk-05",
+      "list-create-task-chunk-06",
+      "list-create-task-chunk-07",
+      "list-create-task-chunk-08",
+      "list-create-task-chunk-09",
+      "list-create-task-chunk-10",
+      "list-create-task-chunk-11",
+      "list-create-task-chunk-12",
+      "list-create-task-chunk-13",
+      "list-create-task-chunk-14",
+      "list-create-task-chunk-15",
+      "list-create-task-chunk-16",
+      "list-create-task-chunk-17"
+    ]
+  },
+  {
+    "path": "markdown/list-get-token.md",
+    "title": "获取 Token 接口",
+    "source": "https://docs.hitem3d.ai/zh/api/api-reference/list/get-token",
+    "chunk_ids": [
+      "list-get-token-chunk-01",
+      "list-get-token-chunk-02",
+      "list-get-token-chunk-03"
+    ]
+  },
+  {
+    "path": "markdown/list-query-task.md",
+    "title": "查询任务接口",
+    "source": "https://docs.hitem3d.ai/zh/api/api-reference/list/query-task",
+    "chunk_ids": [
+      "list-query-task-chunk-01",
+      "list-query-task-chunk-02",
+      "list-query-task-chunk-03",
+      "list-query-task-chunk-04"
+    ]
+  },
+  {
+    "path": "markdown/process.md",
+    "title": "服务流程",
+    "source": "https://docs.hitem3d.ai/zh/api/api-reference/process",
+    "chunk_ids": [
+      "process-chunk-01"
+    ]
+  }
+]
