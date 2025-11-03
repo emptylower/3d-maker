@@ -186,7 +186,8 @@ export async function submitTask(params: SubmitTaskParams): Promise<SubmitTaskRe
   if (cb) form.append('callback_url', cb)
   if (params.mesh_url) form.append('mesh_url', params.mesh_url)
 
-  const toBlob = (content: SubmitTaskParams['images'][number]['content'], contentType?: string) => {
+  type BlobContent = string | Uint8Array | ArrayBuffer | Buffer
+  const toBlob = (content: BlobContent, contentType?: string) => {
     const ctype = contentType || 'application/octet-stream'
     if (typeof content === 'string') return new Blob([content], { type: ctype })
     if (content instanceof Uint8Array) return new Blob([content], { type: ctype })
