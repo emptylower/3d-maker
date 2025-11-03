@@ -7,14 +7,14 @@ function filenameFromKey(key: string) {
   return segs[segs.length - 1] || 'download.bin'
 }
 
-export async function GET(req: Request, { params }: { params: { uuid: string } }) {
+export async function GET(req: Request, ctx: any) {
   try {
     const user_uuid = await getUserUuid()
     if (!user_uuid) {
       return Response.json({ code: -1, message: 'no auth' }, { status: 401 })
     }
 
-    const { uuid } = params
+    const { uuid } = ctx?.params || {}
     const asset = await findAssetByUuid(uuid)
     if (!asset) {
       return Response.json({ code: -1, message: 'not found' }, { status: 404 })
