@@ -3,7 +3,7 @@ import { findUserByEmail, findUserByUuid, insertUser } from "@/models/user";
 
 import { User } from "@/types/user";
 import { auth } from "@/auth";
-import { getOneYearLaterTimestr } from "@/lib/time";
+import { getDaysLaterTimestr } from "@/lib/time";
 import { getUserUuidByApiKey } from "@/models/apikey";
 import { headers } from "next/headers";
 import { increaseCredits } from "./credit";
@@ -14,12 +14,12 @@ export async function saveUser(user: User) {
     if (!existUser) {
       await insertUser(user);
 
-      // increase credits for new user, expire in one year
+      // increase credits for new user, expire in 7 days
       await increaseCredits({
         user_uuid: user.uuid || "",
         trans_type: CreditsTransType.NewUser,
         credits: CreditsAmount.NewUserGet,
-        expired_at: getOneYearLaterTimestr(),
+        expired_at: getDaysLaterTimestr(7),
       });
     } else {
       user.id = existUser.id;

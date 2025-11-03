@@ -31,18 +31,12 @@ export async function POST(req: Request) {
       return respErr("invalid params");
     }
 
-    if (!["year", "month", "one-time"].includes(interval)) {
+    // Only support one-time USD payments in this project
+    if (interval !== "one-time") {
       return respErr("invalid interval");
     }
-
-    const is_subscription = interval === "month" || interval === "year";
-
-    if (interval === "year" && valid_months !== 12) {
-      return respErr("invalid valid_months");
-    }
-
-    if (interval === "month" && valid_months !== 1) {
-      return respErr("invalid valid_months");
+    if (currency !== "usd") {
+      return respErr("invalid currency");
     }
 
     const user_uuid = await getUserUuid();
@@ -74,10 +68,7 @@ export async function POST(req: Request) {
     const timePeriodMillis = timePeriod.getTime();
     let delayTimeMillis = 0;
 
-    // subscription
-    if (is_subscription) {
-      delayTimeMillis = 24 * 60 * 60 * 1000; // delay 24 hours expired
-    }
+    // one-time purchase: no subscription delay
 
     const newTimeMillis = timePeriodMillis + delayTimeMillis;
     const newDate = new Date(newTimeMillis);
@@ -113,16 +104,11 @@ export async function POST(req: Request) {
               name: product_name,
             },
             unit_amount: amount,
-            recurring: is_subscription
-              ? {
-                  interval: interval,
-                }
-              : undefined,
           },
           quantity: 1,
         },
       ],
-      allow_promotion_codes: true,
+      allow_promotion_codes: false,
       metadata: {
         project: process.env.NEXT_PUBLIC_PROJECT_NAME || "",
         product_name: product_name,
@@ -131,7 +117,7 @@ export async function POST(req: Request) {
         credits: credits,
         user_uuid: user_uuid,
       },
-      mode: is_subscription ? "subscription" : "payment",
+      mode: "payment",
       success_url: `${process.env.NEXT_PUBLIC_WEB_URL}/pay-success/{CHECKOUT_SESSION_ID}`,
       cancel_url: cancel_url,
     };
@@ -140,21 +126,7 @@ export async function POST(req: Request) {
       options.customer_email = user_email;
     }
 
-    if (is_subscription) {
-      options.subscription_data = {
-        metadata: options.metadata,
-      };
-    }
-
-    if (currency === "cny") {
-      options.payment_method_types = ["wechat_pay", "alipay", "card"];
-      options.payment_method_options = {
-        wechat_pay: {
-          client: "web",
-        },
-        alipay: {},
-      };
-    }
+    // Only USD card payments; no subscription metadata
 
     const order_detail = JSON.stringify(options);
 

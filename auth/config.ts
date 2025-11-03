@@ -8,6 +8,8 @@ import { getClientIp } from "@/lib/ip";
 import { getIsoTimestr } from "@/lib/time";
 import { getUuid } from "@/lib/hash";
 import { saveUser } from "@/services/user";
+import { verifyPassword } from "@/lib/password";
+import { findUserByEmail } from "@/models/user";
 
 let providers: Provider[] = [];
 
@@ -148,30 +150,45 @@ export const authOptions: NextAuthConfig = {
       // Persist the OAuth access_token and or the user id to the token right after signin
       try {
         if (user && user.email && account) {
-          const dbUser: User = {
-            uuid: getUuid(),
-            email: user.email,
-            nickname: user.name || "",
-            avatar_url: user.image || "",
-            signin_type: account.type,
-            signin_provider: account.provider,
-            signin_openid: account.providerAccountId,
-            created_at: getIsoTimestr(),
-            signin_ip: await getClientIp(),
-          };
-
-          try {
-            const savedUser = await saveUser(dbUser);
-
-            token.user = {
-              uuid: savedUser.uuid,
-              email: savedUser.email,
-              nickname: savedUser.nickname,
-              avatar_url: savedUser.avatar_url,
-              created_at: savedUser.created_at,
+          if (account.provider === "credentials") {
+            // For credentials login, lookup user and attach to token without creating
+            const db = await findUserByEmail(user.email)
+            if (db) {
+              token.user = {
+                uuid: db.uuid,
+                email: db.email,
+                nickname: db.nickname,
+                avatar_url: db.avatar_url,
+                created_at: db.created_at,
+              } as any
+            }
+          } else {
+            // OAuth / One-tap: save or upsert
+            const dbUser: User = {
+              uuid: getUuid(),
+              email: user.email,
+              nickname: user.name || "",
+              avatar_url: (user as any).image || "",
+              signin_type: (account as any).type,
+              signin_provider: account.provider,
+              signin_openid: (account as any).providerAccountId,
+              created_at: getIsoTimestr(),
+              signin_ip: await getClientIp(),
             };
-          } catch (e) {
-            console.error("save user failed:", e);
+
+            try {
+              const savedUser = await saveUser(dbUser);
+
+              token.user = {
+                uuid: savedUser.uuid,
+                email: savedUser.email,
+                nickname: savedUser.nickname,
+                avatar_url: savedUser.avatar_url,
+                created_at: savedUser.created_at,
+              } as any;
+            } catch (e) {
+              console.error("save user failed:", e);
+            }
           }
         }
         return token;
@@ -182,3 +199,34 @@ export const authOptions: NextAuthConfig = {
     },
   },
 };
+
+// Local credentials (email + password)
+if (process.env.NEXT_PUBLIC_AUTH_CREDENTIALS_ENABLED !== "false") {
+  providers.push(
+    CredentialsProvider({
+      id: "credentials",
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = (credentials?.email as string)?.toLowerCase().trim();
+        const password = (credentials?.password as string) || "";
+        if (!email || !password) return null;
+
+        const user = await findUserByEmail(email);
+        if (!user || !user.password_hash || !user.password_salt) return null;
+        const ok = await verifyPassword(password, user.password_salt, user.password_hash);
+        if (!ok) return null;
+
+        return {
+          id: user.uuid as string,
+          email: user.email,
+          name: user.nickname,
+          image: user.avatar_url,
+        } as any;
+      },
+    })
+  );
+}

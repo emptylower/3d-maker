@@ -37,6 +37,16 @@ export default async function AdminLayout({
           icon: "RiUserLine",
         },
         {
+          title: "Assets",
+          url: "/admin/assets",
+          icon: "RiGalleryLine",
+        },
+        {
+          title: "Generation Tasks",
+          url: "/admin/generation-tasks",
+          icon: "RiCpuLine",
+        },
+        {
           title: "Orders",
           icon: "RiOrderPlayLine",
           is_expand: true,
@@ -46,6 +56,21 @@ export default async function AdminLayout({
               url: "/admin/paid-orders",
             },
           ],
+        },
+        {
+          title: "Vouchers",
+          url: "/admin/vouchers",
+          icon: "RiTicketLine",
+        },
+        {
+          title: "Publications",
+          url: "/admin/publications",
+          icon: "RiArticleLine",
+        },
+        {
+          title: "Reports",
+          url: "/admin/reports",
+          icon: "RiFlagLine",
         },
         {
           title: "Posts",

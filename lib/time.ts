@@ -21,3 +21,10 @@ export const getOneYearLaterTimestr = () => {
 
   return oneYearLater.toISOString();
 };
+
+export const getDaysLaterTimestr = (days: number) => {
+  const currentDate = new Date();
+  const later = new Date(currentDate);
+  later.setUTCDate(currentDate.getUTCDate() + days);
+  return later.toISOString();
+};

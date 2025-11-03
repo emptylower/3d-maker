@@ -26,8 +26,20 @@ export async function handleOrderSession(session: Stripe.Checkout.Session) {
     const paid_detail = JSON.stringify(session);
 
     const order = await findOrderByOrderNo(order_no);
-    if (!order || order.status !== "created") {
+    if (!order) {
+      // order not found: let upstream retry by throwing
       throw new Error("invalid order");
+    }
+
+    if (order.status === "paid") {
+      // duplicate/already processed: idempotent no-op
+      console.log("order already paid, skip: ", order_no);
+      return;
+    }
+
+    if (order.status !== "created") {
+      // unexpected status: allow retry for transient issues
+      throw new Error("invalid order status");
     }
 
     const paid_at = getIsoTimestr();

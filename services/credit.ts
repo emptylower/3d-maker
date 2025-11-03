@@ -17,10 +17,11 @@ export enum CreditsTransType {
   OrderPay = "order_pay", // user pay for credits
   SystemAdd = "system_add", // system add credits
   Ping = "ping", // cost for ping api
+  Generate3D = "generate_3d", // cost for 3d generation
 }
 
 export enum CreditsAmount {
-  NewUserGet = 10,
+  NewUserGet = 80,
   PingCost = 1,
 }
 
