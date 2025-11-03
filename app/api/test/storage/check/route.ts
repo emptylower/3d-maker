@@ -37,6 +37,13 @@ export async function POST(req: Request) {
       const s3 = new S3Client(cfg)
       const bucket = process.env.STORAGE_BUCKET || ''
       try {
+        // attempt list buckets (may fail depending on permissions)
+        try {
+          const lb = await s3.send(new ListBucketsCommand({}))
+          // return only names
+          const names = (lb.Buckets || []).map(b => b.Name)
+          // ignore in final result; continue to put
+        } catch (e) {}
         await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: 'text/plain', ContentDisposition: 'inline' }))
         return Response.json({ ok: true, via: 'PutObject', bucket, key })
       } catch (e: any) {
