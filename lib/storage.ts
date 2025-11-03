@@ -20,6 +20,7 @@ export class Storage {
     this.s3 = new S3Client({
       endpoint: config?.endpoint || process.env.STORAGE_ENDPOINT || "",
       region: config?.region || process.env.STORAGE_REGION || "auto",
+      forcePathStyle: true,
       credentials: {
         accessKeyId: config?.accessKey || process.env.STORAGE_ACCESS_KEY || "",
         secretAccessKey:
