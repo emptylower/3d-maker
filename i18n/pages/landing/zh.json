@@ -12,37 +12,10 @@
     },
     "nav": {
       "items": [
-        {
-          "title": "功能特点",
-          "url": "/#feature",
-          "icon": "HiOutlineSparkles"
-        },
-        {
-          "title": "定价",
-          "url": "/#pricing",
-          "icon": "MdPayment"
-        },
-        {
-          "title": "案例展示",
-          "url": "/#showcase",
-          "icon": "BiCube",
-          "children": [
-            {
-              "title": "AI壁纸商店",
-              "description": "AI壁纸生成器",
-              "icon": "MdOutlineWallpaper",
-              "url": "https://aiwallpaper.shop",
-              "target": "_blank"
-            },
-            {
-              "title": "AI封面生成器",
-              "description": "AI封面生成器",
-              "icon": "",
-              "url": "https://aicover.design",
-              "target": "_blank"
-            }
-          ]
-        }
+        { "title": "创作", "url": "/generate" },
+        { "title": "资产", "url": "/my-assets" },
+        { "title": "广场", "url": "/plaza" },
+        { "title": "登录/注册", "url": "/auth/signin" }
       ]
     },
     "buttons": [

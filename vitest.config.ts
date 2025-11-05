@@ -15,8 +15,8 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['tests/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['tests/e2e/**'],
     setupFiles: ['tests/setup/test-setup.ts'],
     cache: { dir: './node_modules/.vitest' },
   },
 })
-

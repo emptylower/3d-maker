@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { SidebarProvider } from '@/components/ui/sidebar'
 
 vi.mock('@/models/voucher', () => ({ listVouchers: vi.fn() }))
 
@@ -19,11 +21,10 @@ describe('Admin Vouchers Page', () => {
       { code: 'ABCD', credits: 100, valid_months: 0, max_redemptions: 1, used_count: 0, status: 'active', issued_by: 'admin@example.com', created_at: new Date().toISOString() },
     ])
     const node = await (Page as any)()
-    render(node)
+    render(<SidebarProvider>{node}</SidebarProvider>)
     expect(screen.getByText('Vouchers')).toBeInTheDocument()
     const btn = screen.getByText('Disable')
     fireEvent.click(btn)
     expect(global.fetch).toHaveBeenCalledWith('/api/vouchers/disable', expect.any(Object))
   })
 })
-

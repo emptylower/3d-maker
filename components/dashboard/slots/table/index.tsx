@@ -1,3 +1,4 @@
+import React from "react";
 import Header from "@/components/dashboard/header";
 import TableBlock from "@/components/blocks/table";
 import { Table as TableSlotType } from "@/types/slots/table";

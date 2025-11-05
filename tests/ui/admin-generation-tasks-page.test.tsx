@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { SidebarProvider } from '@/components/ui/sidebar'
 
 vi.mock('@/models/generation-task', () => ({ listGenerationTasks: vi.fn() }))
 
@@ -17,8 +19,7 @@ describe('Admin Generation Tasks Page', () => {
       { task_id: 't1', user_uuid: 'u1', model_version: 'hitem3dv1', state: 'created', created_at: new Date().toISOString() },
     ])
     const node = await (Page as any)()
-    render(node)
+    render(<SidebarProvider>{node}</SidebarProvider>)
     expect(screen.getByText('Generation Tasks')).toBeInTheDocument()
   })
 })
-

@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react";
 import { Button } from "@/components/ui/button";
 
 export default function OfflinePublicationButton({ id, disabled }: { id: number; disabled?: boolean }) {
@@ -21,4 +22,3 @@ export default function OfflinePublicationButton({ id, disabled }: { id: number;
     </Button>
   )
 }
-

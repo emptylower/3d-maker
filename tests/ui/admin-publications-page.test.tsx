@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { SidebarProvider } from '@/components/ui/sidebar'
 
 vi.mock('@/models/publication', () => ({ listPublications: vi.fn() }))
 
@@ -19,11 +21,10 @@ describe('Admin Publications Page', () => {
       { id: 1, slug: 'p-1', title: 'Pub 1', status: 'online', created_at: new Date().toISOString() },
     ])
     const node = await (Page as any)()
-    render(node)
+    render(<SidebarProvider>{node}</SidebarProvider>)
     expect(screen.getByText('Publications')).toBeInTheDocument()
     const btn = screen.getByText('Offline')
     fireEvent.click(btn)
     expect(global.fetch).toHaveBeenCalledWith('/api/publications/offline', expect.any(Object))
   })
 })
-

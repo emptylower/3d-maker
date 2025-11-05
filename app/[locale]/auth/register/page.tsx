@@ -1,19 +1,17 @@
-import SignForm from "@/components/sign/form";
-import CredentialsLoginForm from "@/components/sign/credentials-login-form";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import RegisterForm from "@/components/sign/register-form";
 
-export default async function SignInPage({
+export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl: string | undefined }>;
+  searchParams: Promise<{ callbackUrl?: string }>
 }) {
-  const { callbackUrl } = await searchParams;
-  const session = await auth();
+  const { callbackUrl } = await searchParams
+  const session = await auth()
   if (session) {
-    return redirect(callbackUrl || "/");
+    return redirect(callbackUrl || "/")
   }
-
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
       <div className="flex w-full max-w-sm flex-col gap-6">
@@ -23,13 +21,9 @@ export default async function SignInPage({
           </div>
           {process.env.NEXT_PUBLIC_PROJECT_NAME}
         </a>
-        {/* OAuth 快捷登录 */}
-        <SignForm />
-        {/* 邮箱密码登录 */}
-        <div className="border rounded-md p-4 bg-background">
-          <CredentialsLoginForm />
-        </div>
+        <RegisterForm />
       </div>
     </div>
-  );
+  )
 }
+
