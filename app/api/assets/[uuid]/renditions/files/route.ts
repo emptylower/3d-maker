@@ -36,10 +36,11 @@ export async function GET(req: Request, ctx: any) {
     // sign
     const files: Array<{ name: string; url: string }> = []
     for (const key of keys) {
-      const name = key.substring(prefix.length)
-      const disp = `attachment; filename=${encodeURIComponent(name)}`
+      const rawName = key.substring(prefix.length)
+      const cleanName = dropQueryAndHash(rawName)
+      const disp = `attachment; filename=${encodeURIComponent(cleanName)}`
       const { url } = await storage.getSignedUrl({ key, responseDisposition: disp })
-      files.push({ name, url })
+      files.push({ name: cleanName, url })
     }
 
     return Response.json({ code: 0, data: { files } })
@@ -69,8 +70,8 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
     const res = await fetch(objUrl, { headers })
     if (!res.ok) return false
     const objText = await res.text()
-    const objName = objUrl.split('/').pop() || 'model.obj'
-    await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(objText)), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(objName)}` }), contentType: 'text/plain', disposition: 'attachment' })
+    const objPathSeg = new URL(objUrl).pathname.split('/').pop() || 'model.obj'
+    await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(objText)), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(objPathSeg)}` }), contentType: 'text/plain', disposition: 'attachment' })
 
     const mtlFiles = parseMtllib(objText)
     const fetchedMtls: string[] = []
@@ -136,5 +137,11 @@ function parseTextures(mtlText: string): string[] {
   }
   return [...set]
 }
-function sanitize(name: string) { return name.replace(/^\/+/, '').replace(/\\/g, '/').replace(/\.+\//g, '') }
-
+function sanitize(name: string) {
+  // remove query/hash, leading slashes, backslashes, and parent traversal
+  const noQuery = dropQueryAndHash(name)
+  return noQuery.replace(/^\/+/, '').replace(/\\/g, '/').replace(/\.+\//g, '')
+}
+function dropQueryAndHash(s: string) {
+  return s.split('?')[0].split('#')[0]
+}

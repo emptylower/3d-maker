@@ -60,7 +60,7 @@ export default function RenditionsPanel({ assetUuid }: { assetUuid: string }) {
           const w = window.open('', '_blank')
           if (w) {
             const links = files
-              .map((f) => `<li><a href="${f.url}" download target="_blank" rel="noopener">${escapeHtml(f.name)}</a></li>`) 
+              .map((f) => `<li><a href="${f.url}" download="${escapeHtml(f.name)}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a></li>`) 
               .join('')
             w.document.write(`<!doctype html><title>OBJ 文件清单</title><div style="font-family:system-ui,Arial;padding:16px"><h3>OBJ 文件清单</h3><ul>${links || '<li>暂无文件</li>'}</ul></div>`)
             w.document.close()
