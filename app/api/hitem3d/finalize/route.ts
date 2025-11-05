@@ -38,7 +38,8 @@ export async function POST(req: Request) {
       headers['Origin'] = process.env.HITEM3D_REFERER || coverOrigin
       headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
       if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
-      await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers })
+      const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
+      await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers, contentType: ctypeMap[ext] })
       cover_key = key
     }
 
@@ -53,7 +54,8 @@ export async function POST(req: Request) {
       headers['Origin'] = process.env.HITEM3D_REFERER || fileOrigin
       headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
       if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
-      await storage.downloadAndUpload({ url: file_url, key, disposition: 'attachment', headers })
+      const ctype = ext === 'glb' ? 'model/gltf-binary' : undefined
+      await storage.downloadAndUpload({ url: file_url, key, disposition: 'attachment', headers, contentType: ctype })
       file_key_full = key
     }
 

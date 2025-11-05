@@ -59,7 +59,8 @@ export async function POST(req: Request) {
         headers['Origin'] = process.env.HITEM3D_REFERER || coverOrigin
         headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
         if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
-        await storage.downloadAndUpload({ url: cover_url, key: cover_key, disposition: 'inline', headers })
+        const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
+        await storage.downloadAndUpload({ url: cover_url, key: cover_key, disposition: 'inline', headers, contentType: ctypeMap[coverExt] })
       }
 
       // file
@@ -73,7 +74,8 @@ export async function POST(req: Request) {
         headers['Origin'] = process.env.HITEM3D_REFERER || fileOrigin
         headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
         if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
-        await storage.downloadAndUpload({ url: file_url, key: file_key_full, disposition: 'attachment', headers })
+        const ctype = fileExt === 'glb' ? 'model/gltf-binary' : undefined
+        await storage.downloadAndUpload({ url: file_url, key: file_key_full, disposition: 'attachment', headers, contentType: ctype })
       }
 
       // create asset record (mocked in tests)
