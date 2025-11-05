@@ -17,6 +17,7 @@ export async function GET(req: Request, ctx: any) {
 
     const url = new URL(req.url)
     const fmt = (url.searchParams.get('format') || 'obj') as Fmt
+    const debugEnabled = ['1', 'true', 'yes'].includes((url.searchParams.get('debug') || '').toLowerCase())
     if (fmt !== 'obj') return Response.json({ code: -1, message: 'unsupported format' }, { status: 400 })
 
     const storage = newStorage()
@@ -24,13 +25,17 @@ export async function GET(req: Request, ctx: any) {
 
     // materialize if not exists
     let keys = await storage.listObjects({ prefix })
+    let debugInfo: any | undefined
     if (!keys || keys.length === 0) {
-      const ok = await materializeObjFiles(asset.user_uuid, asset.uuid, asset.task_id || '')
-      if (ok) keys = await storage.listObjects({ prefix })
+      const res = await materializeObjFiles(asset.user_uuid, asset.uuid, asset.task_id || '', debugEnabled)
+      debugInfo = res.debug
+      if (res.ok) keys = await storage.listObjects({ prefix })
     }
 
     if (!keys || keys.length === 0) {
-      return Response.json({ code: -1, message: 'files not available' }, { status: 404 })
+      const payload: any = { code: -1, message: 'files not available' }
+      if (debugEnabled) payload.debug = debugInfo || { note: 'no keys after materialize attempt' }
+      return Response.json(payload, { status: 404 })
     }
 
     // sign
@@ -43,21 +48,25 @@ export async function GET(req: Request, ctx: any) {
       files.push({ name: cleanName, url })
     }
 
-    return Response.json({ code: 0, data: { files } })
+    const payload: any = { code: 0, data: { files } }
+    if (debugEnabled) payload.debug = debugInfo || { note: 'files already existed, no materialize' }
+    return Response.json(payload)
   } catch (e) {
     console.error('renditions files error:', e)
     return Response.json({ code: -1, message: 'internal error' }, { status: 500 })
   }
 }
 
-async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_id: string): Promise<boolean> {
+async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_id: string, debugEnabled = false): Promise<{ ok: boolean; debug?: any }> {
   try {
-    if (!task_id) return false
+    const dbg: any = debugEnabled ? { steps: [], uploads: [] } : undefined
+    const pushStep = (s: any) => { if (dbg) dbg.steps.push(s) }
+    if (!task_id) { pushStep({ reason: 'no_task_id' }); return { ok: false, debug: dbg } }
     const task = await findGenerationTaskByTaskId(task_id)
     const baseUrl = task?.hitem3d_file_url || ''
-    if (!baseUrl) return false
+    if (!baseUrl) { pushStep({ reason: 'no_vendor_url' }); return { ok: false, debug: dbg } }
     const objUrl = replaceExt(baseUrl, 'obj')
-    if (!objUrl) return false
+    if (!objUrl) { pushStep({ reason: 'replace_ext_failed', baseUrl }); return { ok: false, debug: dbg } }
 
     const origin = new URL(objUrl).origin
     const baseQS = new URL(objUrl).search // keep auth_key style queries
@@ -69,13 +78,17 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
 
     const storage = newStorage()
     const res = await fetch(objUrl, { headers })
-    if (!res.ok) return false
+    if (debugEnabled) pushStep({ action: 'fetch_obj', url: redactUrl(objUrl), status: res.status, ok: res.ok })
+    if (!res.ok) return { ok: false, debug: dbg }
     const objText = await res.text()
     const objUrlObj = new URL(objUrl)
     const objPathSeg = objUrlObj.pathname.split('/').pop() || 'model.obj'
-    await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(objText)), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(objPathSeg)}` }), contentType: 'text/plain', disposition: 'attachment' })
+    const objKey = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(objPathSeg)}` })
+    await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(objText)), key: objKey, contentType: 'text/plain', disposition: 'attachment' })
+    if (debugEnabled) dbg.uploads.push({ key: objKey, type: 'obj' })
 
     const mtlFiles = parseMtllib(objText)
+    if (debugEnabled) pushStep({ action: 'parse_mtllib', count: mtlFiles.length, files: mtlFiles })
     const fetchedMtls: string[] = []
     for (const m of mtlFiles) {
       try {
@@ -84,11 +97,15 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
         if (!mUrlObj.search) mUrlObj.search = baseQS
         const mUrl = mUrlObj.toString()
         const mRes = await fetch(mUrl, { headers })
+        if (debugEnabled) pushStep({ action: 'fetch_mtl', name: mNorm, url: redactUrl(mUrl), status: mRes.status, ok: mRes.ok })
         if (!mRes.ok) continue
         const mText = await mRes.text()
-        await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(mText)), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(mNorm)}` }), contentType: 'text/plain', disposition: 'attachment' })
+        const mKey = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(mNorm)}` })
+        await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(mText)), key: mKey, contentType: 'text/plain', disposition: 'attachment' })
+        if (debugEnabled) dbg.uploads.push({ key: mKey, type: 'mtl' })
         // textures referenced in this mtl
         const tex = parseTextures(mText)
+        if (debugEnabled) pushStep({ action: 'parse_textures', from: mNorm, count: tex.length, files: tex })
         for (const t of tex) {
           try {
             const tNorm = t.replace(/\\/g, '/')
@@ -96,16 +113,21 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
             if (!tUrlObj.search) tUrlObj.search = baseQS
             const tUrl = tUrlObj.toString()
             const tRes = await fetch(tUrl, { headers })
+            if (debugEnabled) pushStep({ action: 'fetch_texture', name: tNorm, url: redactUrl(tUrl), status: tRes.status, ok: tRes.ok })
             if (!tRes.ok) continue
             const buf = new Uint8Array(await tRes.arrayBuffer())
-            await storage.uploadFile({ body: Buffer.from(buf), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(tNorm)}` }), disposition: 'attachment' })
+            const tKey = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(tNorm)}` })
+            await storage.uploadFile({ body: Buffer.from(buf), key: tKey, disposition: 'attachment' })
+            if (debugEnabled) dbg.uploads.push({ key: tKey, type: 'texture' })
           } catch {}
         }
         fetchedMtls.push(m)
       } catch {}
     }
-    return true
-  } catch { return false }
+    return { ok: true, debug: dbg }
+  } catch (e) {
+    return { ok: false, debug: { error: (e as any)?.message || String(e) } }
+  }
 }
 
 function replaceExt(u: string, ext: 'obj'): string | null {
@@ -152,4 +174,13 @@ function sanitize(name: string) {
 }
 function dropQueryAndHash(s: string) {
   return s.split('?')[0].split('#')[0]
+}
+
+function redactUrl(u: string) {
+  try {
+    const url = new URL(u)
+    const q = url.search
+    if (!q) return `${url.origin}${url.pathname}`
+    return `${url.origin}${url.pathname}?…`
+  } catch { return 'invalid-url' }
 }
