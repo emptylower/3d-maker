@@ -21,6 +21,26 @@ export async function GET(req: Request, ctx: any) {
     if (fmt !== 'obj') return Response.json({ code: -1, message: 'unsupported format' }, { status: 400 })
 
     const storage = newStorage()
+    // Try vendor-provided ZIP first (common for OBJ+MTL+textures)
+    const zipCandidates = buildZipCandidates(baseUrl)
+    if (debugEnabled) pushStep({ action: 'zip_candidates', urls: zipCandidates.map(redactUrl) })
+    for (const z of zipCandidates) {
+      try {
+        const head = await fetch(z, { method: 'HEAD', headers })
+        if (debugEnabled) pushStep({ action: 'fetch_zip_head', url: redactUrl(z), status: head.status, ok: head.ok })
+        let ok = head.ok
+        if (!ok) {
+          const get = await fetch(z, { method: 'GET', headers })
+          if (debugEnabled) pushStep({ action: 'fetch_zip_get', url: redactUrl(z), status: get.status, ok: get.ok })
+          ok = get.ok
+        }
+        if (!ok) continue
+        const keyZip = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/file.obj.zip` })
+        await storage.downloadAndUpload({ url: z, key: keyZip, disposition: 'attachment', headers, contentType: 'application/zip' })
+        if (debugEnabled) dbg.uploads.push({ key: keyZip, type: 'zip-pass-through' })
+        return { ok: true, debug: dbg }
+      } catch {}
+    }
     const prefix = `assets/${asset.user_uuid}/${asset.uuid}/obj/`
 
     // materialize if not exists
@@ -218,5 +238,19 @@ function buildMtlUrlCandidates(objUrl: string, mtlName: string): string[] {
     const altUrl = new URL(mtlName, alt).toString()
     const set = new Set<string>([same, altUrl])
     return Array.from(set)
+  } catch { return [] }
+}
+
+function buildZipCandidates(vendorUrl: string): string[] {
+  try {
+    const u = new URL(vendorUrl)
+    const segs = u.pathname.split('/')
+    const last = segs[segs.length - 1]
+    if (!last.includes('.')) return []
+    const base = last.substring(0, last.lastIndexOf('.'))
+    const dir = segs.slice(0, -1).join('/')
+    const z1 = new URL(u.toString()); z1.pathname = `${dir}/${base}.obj.zip`
+    const z2 = new URL(u.toString()); z2.pathname = `${dir}/${base}.zip`
+    return [z1.toString(), z2.toString()]
   } catch { return [] }
 }
