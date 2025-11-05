@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { resolveCreditsCost } from "@/lib/credits/cost";
+import { ImageUp } from "lucide-react";
 
 function calcCost(withTexture: boolean) {
   return resolveCreditsCost({ model: "hitem3dv1.5", request_type: withTexture ? 3 : 1, resolution: "1536" })
@@ -67,55 +68,47 @@ export default function GenerateForm(props?: { __overrideModel?: 'hitem3dv1.5' |
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6" data-testid="generate-form">
-      <div className="grid gap-2">
-        <Label htmlFor="image">上传图片</Label>
-        <Input id="image" type="file" accept="image/*" onChange={(e) => setFile(e.currentTarget.files?.[0] || null)} />
-      </div>
-
-      <div className="grid gap-2">
-        <Label>模型版本</Label>
-        <div>
-          <label className="inline-flex items-center gap-2 mr-4">
-            <input type="radio" name="model" value="hitem3dv1.5" defaultChecked readOnly />
-            <span>v1.5（默认）</span>
-          </label>
+    <form onSubmit={onSubmit} className="grid gap-4" data-testid="generate-form">
+      {/* 上传大卡 */}
+      <div className="rounded-xl border bg-muted/20 p-6 h-64 flex flex-col items-center justify-center text-center">
+        <ImageUp className="w-10 h-10 opacity-70 mb-3" />
+        <div className="font-semibold mb-1">上传图片</div>
+        <div className="text-xs opacity-70">支持格式：JPG/JPEG/PNG/Webp</div>
+        <div className="text-xs opacity-70">最大大小：20MB</div>
+        <div className="mt-3">
+          <Label htmlFor="single-image-input" className="sr-only">上传图片</Label>
+          <Input id="single-image-input" type="file" accept="image/*" onChange={(e) => setFile(e.currentTarget.files?.[0] || null)} />
         </div>
       </div>
 
-      <div className="grid gap-2">
-        <Label>分辨率</Label>
-        <div>
-          <label className="inline-flex items-center gap-2 mr-4">
-            <input type="radio" name="resolution" value="1536" defaultChecked readOnly />
-            <span>1536（默认）</span>
-          </label>
+      {/* 底部操作条 */}
+      <div className="flex items-center justify-between rounded-xl border bg-muted/10 px-4 py-3">
+        <div className="flex items-center gap-3 text-sm">
+          <div className="px-3 py-1 rounded bg-muted">{props?.__overrideModel === 'scene-portraitv1.5' ? '人像 v1.5' : 'v1.5'}</div>
+          <div className="px-3 py-1 rounded bg-muted">{props?.__overrideResolution || '1536'}P³</div>
+          {!props?.__fixedTexture && (
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                aria-label="启用纹理"
+                checked={withTexture}
+                onChange={(e) => setWithTexture(e.currentTarget.checked)}
+              />
+              <span>纹理</span>
+            </label>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <div aria-live="polite" data-testid="cost-hint" className="text-sm opacity-80">预计消耗 {cost} 积分</div>
+          <Button type="submit" disabled={!file || submitting}>
+            {submitting ? '提交中…' : '提交生成'}
+          </Button>
         </div>
       </div>
-
-      <div className="grid gap-2">
-        {!props?.__fixedTexture && (
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              aria-label="启用纹理"
-              checked={withTexture}
-              onChange={(e) => setWithTexture(e.currentTarget.checked)}
-            />
-            <span>启用纹理</span>
-          </label>
-        )}
-      </div>
-
-      <div aria-live="polite" data-testid="cost-hint">预计消耗 {cost} 积分</div>
 
       {message && (
         <div role="status" className="text-sm text-muted-foreground">{message}</div>
       )}
-
-      <Button type="submit" disabled={!file || submitting}>
-        {submitting ? '提交中…' : '提交生成'}
-      </Button>
     </form>
   )
 }

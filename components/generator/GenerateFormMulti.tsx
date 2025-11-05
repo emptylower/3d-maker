@@ -100,18 +100,18 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
           </div>
         </div>
         <div className="col-span-3">
-          <div className="grid gap-4">
-            <div className="rounded-xl border bg-muted/20 p-4 text-center">
+          <div className="grid gap-4 grid-rows-3 h-64">
+            <div className="rounded-xl border bg-muted/20 p-4 text-center h-full flex flex-col justify-center">
               <div className="text-sm mb-2">后视图（可选）</div>
               <Label htmlFor="back-input" className="sr-only">后视图（可选）</Label>
               <Input id="back-input" type="file" accept="image/*" onChange={(e) => setBack(e.currentTarget.files?.[0] || null)} />
             </div>
-            <div className="rounded-xl border bg-muted/20 p-4 text-center">
+            <div className="rounded-xl border bg-muted/20 p-4 text-center h-full flex flex-col justify-center">
               <div className="text-sm mb-2">左视图（可选）</div>
               <Label htmlFor="left-input" className="sr-only">左视图（可选）</Label>
               <Input id="left-input" type="file" accept="image/*" onChange={(e) => setLeft(e.currentTarget.files?.[0] || null)} />
             </div>
-            <div className="rounded-xl border bg-muted/20 p-4 text-center">
+            <div className="rounded-xl border bg-muted/20 p-4 text-center h-full flex flex-col justify-center">
               <div className="text-sm mb-2">右视图（可选）</div>
               <Label htmlFor="right-input" className="sr-only">右视图（可选）</Label>
               <Input id="right-input" type="file" accept="image/*" onChange={(e) => setRight(e.currentTarget.files?.[0] || null)} />
