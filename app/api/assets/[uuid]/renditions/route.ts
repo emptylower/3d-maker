@@ -277,6 +277,9 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
   const CDH = 0x02014b50
   const EOCD = 0x06054b50
   const version = 20
+  const now = new Date()
+  const dosTime = toDosTime(now)
+  const dosDate = toDosDate(now)
   let offset = 0
   const records: any[] = []
   const chunks: Uint8Array[] = []
@@ -294,8 +297,8 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
       ...u16(version),        // version needed to extract
       ...u16(0),              // general purpose bit flag
       ...u16(0),              // compression method (store)
-      ...u16(0),              // last mod file time
-      ...u16(0),              // last mod file date
+      ...u16(dosTime),        // last mod file time
+      ...u16(dosDate),        // last mod file date
     )
     localHeader.push(...u32(crc), ...u32(f.data.length), ...u32(f.data.length))
     localHeader.push(...u16(nameBytes.length), ...u16(0))
@@ -316,8 +319,8 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
       ...u16(version),    // version needed to extract
       ...u16(0),          // general purpose bit flag
       ...u16(0),          // compression method
-      ...u16(0),          // last mod time
-      ...u16(0),          // last mod date
+      ...u16(dosTime),    // last mod time
+      ...u16(dosDate),    // last mod date
       ...u32(r.crc),
       ...u32(r.size),     // comp size
       ...u32(r.size),     // uncomp size
@@ -372,3 +375,16 @@ const CRC32_TABLE = (() => {
   }
   return t
 })()
+
+function toDosTime(d: Date): number {
+  const sec = Math.floor(d.getSeconds() / 2)
+  const min = d.getMinutes()
+  const hr = d.getHours()
+  return (hr << 11) | (min << 5) | sec
+}
+function toDosDate(d: Date): number {
+  const year = d.getFullYear() - 1980
+  const month = d.getMonth() + 1
+  const day = d.getDate()
+  return (year << 9) | (month << 5) | day
+}
