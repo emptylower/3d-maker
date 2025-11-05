@@ -50,6 +50,36 @@ export default function RenditionsPanel({ assetUuid }: { assetUuid: string }) {
   }, [assetUuid, states, startPolling])
 
   const onClickDownload = useCallback(async (fmt: Fmt) => {
+    if (fmt === 'obj') {
+      try {
+        const res = await fetch(`/api/assets/${assetUuid}/renditions/files?format=obj`)
+        if (res.ok) {
+          const js = await res.json().catch(() => null)
+          const files: Array<{ name: string; url: string }> = js?.data?.files || []
+          // 在新窗口打开文件清单
+          const w = window.open('', '_blank')
+          if (w) {
+            const links = files
+              .map((f) => `<li><a href="${f.url}" download target="_blank" rel="noopener">${escapeHtml(f.name)}</a></li>`) 
+              .join('')
+            w.document.write(`<!doctype html><title>OBJ 文件清单</title><div style="font-family:system-ui,Arial;padding:16px"><h3>OBJ 文件清单</h3><ul>${links || '<li>暂无文件</li>'}</ul></div>`)
+            w.document.close()
+          }
+          if (files.length > 0) return
+        }
+      } catch {}
+      // 回退到单文件下载
+      const url = `/api/assets/${assetUuid}/download?format=${fmt}&response=json`
+      const res = await fetch(url)
+      if (!res.ok) return
+      try {
+        const js = await res.json()
+        const dl = js?.data?.url as string
+        if (dl) window.location.href = dl
+      } catch {}
+      return
+    }
+
     const url = `/api/assets/${assetUuid}/download?format=${fmt}&response=json`
     const res = await fetch(url)
     if (!res.ok) return
@@ -59,6 +89,10 @@ export default function RenditionsPanel({ assetUuid }: { assetUuid: string }) {
       if (dl) window.location.href = dl
     } catch {}
   }, [assetUuid])
+
+  function escapeHtml(s: string) {
+    return s.replace(/[&<>"]+/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] as string))
+  }
 
   useEffect(() => () => {
     for (const k of Object.keys(timers.current)) clearTimeout(timers.current[k as Fmt])
