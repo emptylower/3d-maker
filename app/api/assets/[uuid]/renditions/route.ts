@@ -27,8 +27,20 @@ export async function POST(req: Request, ctx: any) {
     if (!isFmt(fmt)) return Response.json({ code: -1, message: 'invalid format' }, { status: 400 })
 
     const existing = await findRendition(asset.uuid, fmt, with_texture)
-    if (existing && (existing.state === 'processing' || existing.state === 'success')) {
-      return Response.json({ code: 0, data: { state: existing.state, task_id: existing.task_id || undefined } }, { status: 200 })
+    if (existing && existing.state === 'success') {
+      // Special case: repackage OBJ plain file into zip when needed
+      if (fmt === 'obj' && existing.file_key && existing.file_key.endsWith('.obj')) {
+        try {
+          const repacked = await repackageObjFromStorage(asset.user_uuid, asset.uuid, existing.file_key)
+          if (repacked) {
+            await upsertRendition({ asset_uuid: asset.uuid, format: fmt, with_texture, state: 'success', file_key: repacked, credits_charged: 0, error: null })
+          }
+        } catch {}
+      }
+      return Response.json({ code: 0, data: { state: 'success', task_id: existing.task_id || undefined } }, { status: 200 })
+    }
+    if (existing && existing.state === 'processing') {
+      return Response.json({ code: 0, data: { state: 'processing', task_id: existing.task_id || undefined } }, { status: 200 })
     }
 
     // Instant-ready optimization: when requesting the same format as original and texture=false
@@ -140,11 +152,23 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
         await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
         return 'success'
       } catch {
-        // fallback to save plain obj
-        const key = buildAssetKey({ user_uuid, asset_uuid, filename: `file.${fmt}` })
-        await storage.downloadAndUpload({ url: chosen.url, key, disposition: 'attachment', headers })
-        await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
-        return 'success'
+        // fallback: still package as zip with only OBJ
+        try {
+          const objRes2 = await fetch(chosen.url, { headers })
+          if (!objRes2.ok) throw new Error('obj_get_failed')
+          const objText2 = await objRes2.text()
+          const objName2 = new URL(chosen.url).pathname.split('/').pop() || 'model.obj'
+          const zipData2 = buildZip([{ name: sanitizeZipPath(objName2), data: new TextEncoder().encode(objText2) }])
+          const key2 = buildAssetKey({ user_uuid, asset_uuid, filename: `file.obj.zip` })
+          await storage.uploadFile({ body: Buffer.from(zipData2), key: key2, contentType: 'application/zip', disposition: 'attachment' })
+          await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key2, credits_charged: 0, error: null })
+          return 'success'
+        } catch {
+          const key = buildAssetKey({ user_uuid, asset_uuid, filename: `file.${fmt}` })
+          await storage.downloadAndUpload({ url: chosen.url, key, disposition: 'attachment', headers })
+          await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
+          return 'success'
+        }
       }
     } else {
       const filename = chosen.isZip ? `file.${fmt}.zip` : `file.${fmt}`
@@ -159,6 +183,21 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
     try { await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'processing', credits_charged: 0, error: 'exception' }) } catch {}
     return 'processing'
   }
+}
+
+async function repackageObjFromStorage(user_uuid: string, asset_uuid: string, file_key: string): Promise<string | null> {
+  try {
+    const storage = newStorage()
+    const { url } = await storage.getSignedUrl({ key: file_key })
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const objText = await res.text()
+    const baseName = file_key.split('/').pop() || 'file.obj'
+    const zip = buildZip([{ name: sanitizeZipPath(baseName), data: new TextEncoder().encode(objText) }])
+    const newKey = file_key.replace(/\.obj$/i, '.obj.zip')
+    await storage.uploadFile({ body: Buffer.from(zip), key: newKey, contentType: 'application/zip', disposition: 'attachment' })
+    return newKey
+  } catch { return null }
 }
 
 function buildCandidateUrls(u: string, fmt: Fmt): Array<{ url: string; isZip: boolean }> {
