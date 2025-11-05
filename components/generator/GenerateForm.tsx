@@ -35,8 +35,8 @@ export default function GenerateForm(props?: { __overrideModel?: 'hitem3dv1.5' |
       fd.append('model', props?.__overrideModel || 'hitem3dv1.5')
       fd.append('resolution', props?.__overrideResolution || '1536')
       fd.append('images', file, file.name || 'image.png')
-      // 默认预览产出 GLB，便于在线预览
-      fd.append('format', '2')
+      // 默认产出 OBJ（下载友好），后台会自动补齐其它格式（含 GLB 便于预览）
+      fd.append('format', '1')
       const resp = await fetch('/api/hitem3d/submit', { method: 'POST', body: fd })
       if (resp.status === 401) {
         setMessage('请先登录后再提交')

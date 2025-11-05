@@ -3,6 +3,7 @@ import { buildAssetKey } from '@/lib/storage-key'
 import { getUuid } from '@/lib/hash'
 import { insertAsset } from '@/models/asset'
 import { findGenerationTaskByTaskId, updateGenerationTask } from '@/models/generation-task'
+import { upsertRendition } from '@/models/asset-rendition'
 import { increaseCredits, CreditsTransType } from '@/services/credit'
 
 type CallbackState = 'created' | 'queueing' | 'processing' | 'success' | 'failed'
@@ -98,6 +99,14 @@ export async function POST(req: Request) {
         updated_at: new Date().toISOString(),
       })
 
+      // Best-effort: auto-complete other formats (OBJ/GLB/STL/FBX) without charging credits
+      try {
+        const originalExt = (file_key_full?.split('.').pop() || '').toLowerCase()
+        const fmts: Array<'obj' | 'glb' | 'stl' | 'fbx'> = ['obj', 'glb', 'stl', 'fbx']
+        const toTry = fmts.filter((f) => f !== originalExt)
+        await Promise.allSettled(toTry.map((fmt) => tryFetchVendorFormat(task.user_uuid, asset_uuid, task.task_id, fmt)))
+      } catch {}
+
       return Response.json({ code: 0, message: 'ok' })
     }
 
@@ -137,4 +146,72 @@ export async function POST(req: Request) {
 // Health check for deployment self-test
 export async function GET() {
   return Response.json({ ok: true })
+}
+
+// Attempt to fetch vendor-provided alternative format and persist to storage/renditions
+async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_id: string, fmt: 'obj' | 'glb' | 'stl' | 'fbx') {
+  try {
+    if (!task_id) return 'skip'
+    const task = await findGenerationTaskByTaskId(task_id)
+    const vendorUrl = task?.hitem3d_file_url || ''
+    if (!vendorUrl) return 'skip'
+    const candidates = buildCandidateUrls(vendorUrl, fmt)
+    if (!candidates.length) return 'skip'
+
+    let chosen: { url: string; isZip: boolean } | null = null
+    for (const c of candidates) {
+      try {
+        const origin = new URL(c.url).origin
+        const headers: Record<string, string> = {}
+        headers['Referer'] = process.env.HITEM3D_REFERER || origin
+        headers['Origin'] = process.env.HITEM3D_REFERER || origin
+        headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
+        if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+        const head = await fetch(c.url, { method: 'HEAD', headers })
+        if (head.ok) { chosen = c; break }
+        const get = await fetch(c.url, { method: 'GET', headers })
+        if (get.ok) { chosen = c; break }
+      } catch {}
+    }
+    if (!chosen) {
+      await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'processing', credits_charged: 0, error: 'not_found' })
+      return 'processing'
+    }
+
+    const origin = new URL(chosen.url).origin
+    const headers: Record<string, string> = {}
+    headers['Referer'] = process.env.HITEM3D_REFERER || origin
+    headers['Origin'] = process.env.HITEM3D_REFERER || origin
+    headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
+    if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+
+    const storage = newStorage()
+    const filename = chosen.isZip ? `file.${fmt}.zip` : `file.${fmt}`
+    const key = buildAssetKey({ user_uuid, asset_uuid, filename })
+    await storage.downloadAndUpload({ url: chosen.url, key, disposition: 'attachment', headers, contentType: chosen.isZip ? 'application/zip' : undefined })
+    await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
+    return 'success'
+  } catch {
+    try { await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'processing', credits_charged: 0, error: 'exception' }) } catch {}
+    return 'processing'
+  }
+}
+
+function buildCandidateUrls(u: string, fmt: 'obj' | 'glb' | 'stl' | 'fbx'): Array<{ url: string; isZip: boolean }> {
+  try {
+    const url = new URL(u)
+    const segs = url.pathname.split('/')
+    const last = segs[segs.length - 1]
+    if (!last.includes('.')) return []
+    const base = last.substring(0, last.lastIndexOf('.'))
+    const dir = segs.slice(0, -1).join('/')
+    const plain = new URL(url.toString()); plain.pathname = `${dir}/${base}.${fmt}`
+    const z1 = new URL(url.toString()); z1.pathname = `${dir}/${base}.${fmt}.zip`
+    const z2 = new URL(url.toString()); z2.pathname = `${dir}/${base}.zip`
+    return [
+      { url: z1.toString(), isZip: true },
+      { url: z2.toString(), isZip: true },
+      { url: plain.toString(), isZip: false },
+    ]
+  } catch { return [] }
 }

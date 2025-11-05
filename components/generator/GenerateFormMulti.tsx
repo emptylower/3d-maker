@@ -50,8 +50,8 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
       fd.append("request_type", String(request_type));
       fd.append("model", model);
       fd.append("resolution", "1536");
-      // 默认预览产出 GLB
-      fd.append("format", "2");
+      // 默认产出 OBJ（下载友好），后台会自动补齐其它格式（含 GLB 便于预览）
+      fd.append("format", "1");
 
       if (!areExtraViewsPresent) {
         fd.append("images", front, front.name || "front.png");

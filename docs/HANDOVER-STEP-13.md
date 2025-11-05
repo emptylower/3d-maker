@@ -117,7 +117,7 @@
   - 默认参数：model=hitem3dv1.5、resolution=1536、request_type=1（几何）。勾选“启用纹理”→ `request_type=3`。
   - 费用提示：基于 `resolveCreditsCost`。
   - 提交：`POST /api/hitem3d/submit`，采用 1B 策略（供应商提交成功后扣费）。
-  - 默认输出格式：format=2（GLB），便于在线预览（依据 `create-task.md`）。
+  - 默认输出格式：format=1（OBJ），后台自动补齐 GLB/STL/FBX 并落库（不扣费），不影响在线预览。
   - 新增容器：`components/generator/GeneratePanel.tsx`，提供“通用/人像”切换与“单图/多视图”页签：
     - 多视图表单：`components/generator/GenerateFormMulti.tsx`，前（必选）/后/左/右四视图；仅选择前视图→走 `images`，存在任一其他视图→走 `multi_images`，顺序固定“前/后/左/右”（未选不占位）。
     - 人像模式固定纹理（`request_type=3`）、固定 `model=scene-portraitv1.5` 且仅 `resolution=1536`。
@@ -207,7 +207,7 @@
 - 运行：
   - `cd shipany-template && pnpm test`（Vitest，全量）
   - E2E（需 baseURL）：`PLAYWRIGHT_BASE_URL=<预发域> pnpm e2e`
-- 主要新增测试：
+ - 主要新增测试：
   - UI：导航渲染、登录/注册表单校验、生成表单（默认 `format=2`）、任务面板等。
   - 集成：hitem3d submit/callback/status/finalize，renditions 路由、assets 下载 409/302/JSON。
 

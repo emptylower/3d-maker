@@ -139,7 +139,8 @@ export async function POST(req: Request) {
       model,
       resolution,
       face: faceToUse,
-      format,
+      // 默认 OBJ，当前端未提供 format 时回退为 1
+      format: (format ?? 1) as FileFormat,
       mesh_url,
     }
     if (hasImages) {
