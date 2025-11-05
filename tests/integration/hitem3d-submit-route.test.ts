@@ -109,6 +109,25 @@ describe('api/hitem3d/submit route', () => {
     expect(taskArg.credits_charged).toBe(15)
   })
 
+  it('forwards format=2 when provided', async () => {
+    ;(getUserUuid as any).mockResolvedValue('u-1')
+    ;(getUserCredits as any).mockResolvedValue({ left_credits: 100 })
+    ;(submitTask as any).mockResolvedValue({ task_id: 'task-456' })
+
+    const fd = new FormData()
+    fd.append('request_type', '1')
+    fd.append('model', 'hitem3dv1.5')
+    fd.append('resolution', '1536')
+    fd.append('format', '2')
+    fd.append('images', new Blob([new Uint8Array([9,9,9])], { type: 'image/jpeg' }), 'a.jpg')
+
+    const req = new Request('http://test.local/api/hitem3d/submit', { method: 'POST', body: fd })
+    const res = await POST(req as any)
+    expect(res.status).toBe(200)
+    const arg = (submitTask as any).mock.calls[0][0]
+    expect(arg.format).toBe(2)
+  })
+
   it('applies default face by resolution when not provided (1536 -> 2000000)', async () => {
     ;(getUserUuid as any).mockResolvedValue('u-2')
     ;(getUserCredits as any).mockResolvedValue({ left_credits: 100 })

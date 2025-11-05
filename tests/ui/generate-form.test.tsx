@@ -14,7 +14,7 @@ describe('GenerateForm UI + MSW integration', () => {
     })
   })
 
-  it('renders default cost (v1.5/1536/几何) and submits with request_type=1', async () => {
+  it('renders default cost (v1.5/1536/几何) and submits with request_type=1 + format=2(glb)', async () => {
     let seen: Record<string, string> = {}
     ;(global.fetch as any).mockImplementation(async (url: any, init: any) => {
       if (String(url).endsWith('/api/hitem3d/submit')) {
@@ -22,6 +22,7 @@ describe('GenerateForm UI + MSW integration', () => {
         seen.request_type = fd.get('request_type') as any
         seen.model = fd.get('model') as any
         seen.resolution = fd.get('resolution') as any
+        seen.format = fd.get('format') as any
         return { ok: true, status: 200, json: async () => ({ code: 0, data: { task_id: 't1' } }) }
       }
       return { ok: false, status: 404, json: async () => ({}) }
@@ -41,6 +42,7 @@ describe('GenerateForm UI + MSW integration', () => {
       expect(seen.request_type).toBe('1')
       expect(seen.model).toBe('hitem3dv1.5')
       expect(seen.resolution).toBe('1536')
+      expect(seen.format).toBe('2')
     })
 
     expect(await screen.findByRole('status')).toHaveTextContent('预览生成中')

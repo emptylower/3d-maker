@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import ViewerGLB from './ViewerGLB'
 
 export default function TaskStatus({ taskId }: { taskId: string }) {
   const [state, setState] = useState<string>('processing')
@@ -7,6 +8,7 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [vendorUrl, setVendorUrl] = useState<string | null>(null)
+  const vendorExt = useMemo(() => (vendorUrl ? vendorUrl.split('.').pop()?.toLowerCase() : ''), [vendorUrl])
 
   const fetchOnce = async () => {
     try {
@@ -79,7 +81,17 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
         </button>
       )}
       {!assetUuid && state === 'success' && vendorUrl && (
-        <a className="underline" href={vendorUrl} target="_blank" rel="noopener noreferrer">临时下载（1小时内有效）</a>
+        vendorExt === 'glb' ? (
+          <div className="w-full mt-3">
+            <ViewerGLB src={vendorUrl} />
+            <div className="mt-1 text-xs text-muted-foreground">临时在线预览（供应商直链，约1小时有效）</div>
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">
+            供应商当前返回 {vendorExt?.toUpperCase()} 链接（可能缺少 .MTL/贴图），暂不支持在线预览。
+            <a className="underline ml-2" href={vendorUrl} target="_blank" rel="noopener noreferrer">临时下载</a>
+          </div>
+        )
       )}
       {err && (
         <span className="text-red-500 text-xs">{err}</span>

@@ -28,6 +28,8 @@ export default function GenerateForm() {
       fd.append('model', 'hitem3dv1.5')
       fd.append('resolution', '1536')
       fd.append('images', file, file.name || 'image.png')
+      // 默认预览产出 GLB，便于在线预览
+      fd.append('format', '2')
       const resp = await fetch('/api/hitem3d/submit', { method: 'POST', body: fd })
       if (resp.status === 401) {
         setMessage('请先登录后再提交')
@@ -104,4 +106,3 @@ export default function GenerateForm() {
     </form>
   )
 }
-
