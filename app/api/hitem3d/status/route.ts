@@ -7,8 +7,8 @@ export async function GET(req: Request) {
     const user_uuid = await getUserUuid()
     if (!user_uuid) return Response.json({ code: -1, message: 'no auth' }, { status: 401 })
 
-    const url = new URL(req.url)
-    const task_id = url.searchParams.get('task_id') || ''
+    const inUrl = new URL(req.url)
+    const task_id = inUrl.searchParams.get('task_id') || ''
     if (!task_id) return Response.json({ code: -1, message: 'task_id required' }, { status: 400 })
 
     const local = await findGenerationTaskByTaskId(task_id)
@@ -19,18 +19,21 @@ export async function GET(req: Request) {
 
     // prefer local state, but also try vendor for fresh status if not success/failed
     let state = local.state
+    let cover_url: string | undefined
+    let url: string | undefined
     if (state !== 'success' && state !== 'failed') {
       try {
         const vendor = await queryTask(task_id)
         state = vendor.state as any
+        cover_url = vendor.cover_url
+        url = vendor.url
       } catch {
         // ignore vendor errors, fallback to local
       }
     }
-    return Response.json({ code: 0, data: { state } })
+    return Response.json({ code: 0, data: { state, cover_url, url } })
   } catch (e) {
     console.error('status query failed:', e)
     return Response.json({ code: -1, message: 'internal error' }, { status: 500 })
   }
 }
-

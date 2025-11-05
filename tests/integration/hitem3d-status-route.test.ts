@@ -22,14 +22,14 @@ describe('api/hitem3d/status route', () => {
     expect(res.status).toBe(401)
   })
 
-  it('returns local or vendor state', async () => {
+  it('returns local or vendor state and vendor urls when available', async () => {
     ;(getUserUuid as any).mockResolvedValue('u1')
     ;(findGenerationTaskByTaskId as any).mockResolvedValue({ task_id: 't1', user_uuid: 'u1', state: 'processing' })
-    ;(queryTask as any).mockResolvedValue({ task_id: 't1', state: 'success' })
+    ;(queryTask as any).mockResolvedValue({ task_id: 't1', state: 'success', cover_url: 'https://v/c.webp', url: 'https://v/file.glb' })
     const res = await GET(new Request('http://test.local/api/hitem3d/status?task_id=t1') as any)
     expect(res.status).toBe(200)
     const js = await res.json()
     expect(js.data.state).toBe('success')
+    expect(js.data.url).toContain('https://v/file.glb')
   })
 })
-

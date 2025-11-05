@@ -6,6 +6,7 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
   const [assetUuid, setAssetUuid] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [vendorUrl, setVendorUrl] = useState<string | null>(null)
 
   const fetchOnce = async () => {
     try {
@@ -19,6 +20,7 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
           nextState = js.data.state
           setState(nextState)
         }
+        if (js?.data?.url) setVendorUrl(js.data.url)
       }
       let foundAsset: string | null = null
       const a = await fetch(`/api/assets/by-task?task_id=${encodeURIComponent(taskId)}`)
@@ -75,6 +77,9 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
         <button className="underline disabled:opacity-60" onClick={fetchOnce} disabled={loading}>
           {state === 'success' ? '等待生成文件… 点击刷新' : '刷新状态'}
         </button>
+      )}
+      {!assetUuid && state === 'success' && vendorUrl && (
+        <a className="underline" href={vendorUrl} target="_blank" rel="noopener noreferrer">临时下载（1小时内有效）</a>
       )}
       {err && (
         <span className="text-red-500 text-xs">{err}</span>
