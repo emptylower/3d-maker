@@ -6,6 +6,7 @@ export type Asset = {
   cover_key?: string
   file_format?: string
   title?: string
+  task_id?: string
   created_at?: string
 }
 
@@ -37,6 +38,32 @@ export async function listAssets(page = 1, limit = 50): Promise<Asset[]> {
   const { data, error } = await supabase
     .from('assets')
     .select('*')
+    .order('created_at', { ascending: false })
+    .range(from, to)
+  if (error) return []
+  return (data as any[]) || []
+}
+
+export async function findAssetByTaskId(task_id: string): Promise<Asset | null> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('assets')
+    .select('*')
+    .eq('task_id', task_id)
+    .limit(1)
+    .maybeSingle()
+  if (error) return null
+  return (data as any) || null
+}
+
+export async function listAssetsByUser(user_uuid: string, page = 1, limit = 50): Promise<Asset[]> {
+  const supabase = getSupabaseClient()
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+  const { data, error } = await supabase
+    .from('assets')
+    .select('*')
+    .eq('user_uuid', user_uuid)
     .order('created_at', { ascending: false })
     .range(from, to)
   if (error) return []

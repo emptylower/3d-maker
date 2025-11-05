@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       await insertAsset({
         uuid: asset_uuid,
         user_uuid: task.user_uuid,
+        task_id: task.task_id,
         status: 'active',
         cover_key,
         file_key_full,
