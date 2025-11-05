@@ -101,6 +101,23 @@ export async function POST(req: Request) {
       return Response.json({ code: 2000, message: 'INSUFFICIENT_CREDITS' })
     }
 
+    // default face by resolution when not provided
+    // 根据供应商文档推荐值设置默认面数（face），用户未传时使用：
+    // 512³→500000，1024³→1000000，1536³→2000000，1536³ Pro→2000000
+    const defaultFace = ((): number => {
+      switch (resolution) {
+        case '512':
+          return 500000
+        case '1024':
+          return 1000000
+        case '1536':
+          return 2000000
+        case '1536pro':
+          return 2000000
+      }
+    })()
+    const faceToUse = face !== undefined ? face : defaultFace
+
     // map files to service input
     const toFilePayload = async (f: any) => {
       // f expected to be File from formData
@@ -114,7 +131,7 @@ export async function POST(req: Request) {
       request_type,
       model,
       resolution,
-      face,
+      face: faceToUse,
       format,
       mesh_url,
     }
@@ -139,7 +156,7 @@ export async function POST(req: Request) {
         request_type,
         model_version: model,
         resolution,
-        face: typeof face === 'number' && Number.isFinite(face) ? (face as number) : undefined,
+        face: faceToUse,
         format,
         state: 'created',
         credits_charged: credits_cost,
