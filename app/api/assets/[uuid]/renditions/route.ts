@@ -245,14 +245,34 @@ async function collectObjPackageFiles(objText: string, objUrl: string, headers: 
 
   const files: Array<{ name: string; data: Uint8Array }> = []
   const te = new TextEncoder()
-  for (const mtl of mtlFiles) {
+  // Build candidate mtl names: declared + <objBase>.mtl + 0.mtl + materials.mtl (dedup)
+  const objBaseName = (base.pathname.split('/').pop() || '0.obj').replace(/\.[^.]+$/i, '') || '0'
+  const mtlNameCandidates = Array.from(new Set<string>([
+    ...Array.from(mtlFiles),
+    `${objBaseName}.mtl`,
+    `0.mtl`,
+    `materials.mtl`,
+  ]))
+  for (const mtl of mtlNameCandidates) {
     try {
       const mNorm = mtl.replace(/\\/g, '/')
-      const mUrlObj = new URL(mNorm, base)
-      if (!mUrlObj.search) mUrlObj.search = baseQS
-      const res = await fetch(mUrlObj.toString(), { headers })
-      if (!res.ok) continue
-      const txt = await res.text()
+      const candSame = new URL(mNorm, base)
+      if (!candSame.search) candSame.search = baseQS
+      const alt = new URL(base.toString())
+      alt.pathname = alt.pathname.replace('/model/', '/')
+      const candAlt = new URL(mNorm, alt)
+      if (!candAlt.search) candAlt.search = baseQS
+      const tryUrls = [candSame.toString(), candAlt.toString()]
+      let txt: string | null = null
+      for (const u of tryUrls) {
+        try {
+          const res = await fetch(u, { headers })
+          if (!res.ok) continue
+          txt = await res.text()
+          break
+        } catch {}
+      }
+      if (!txt) continue
       files.push({ name: sanitizeZipPath(mNorm), data: te.encode(txt) })
       // parse textures
       const tl = txt.split(/\r?\n/)
