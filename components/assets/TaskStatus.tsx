@@ -9,18 +9,26 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
   const fetchOnce = async () => {
     try {
       setLoading(true)
+      let nextState = state
       const res = await fetch(`/api/hitem3d/status?task_id=${encodeURIComponent(taskId)}`)
       if (res.ok) {
         const js = await res.json()
-        if (js?.data?.state) setState(js.data.state)
+        if (js?.data?.state) {
+          nextState = js.data.state
+          setState(nextState)
+        }
       }
+      let foundAsset: string | null = null
       const a = await fetch(`/api/assets/by-task?task_id=${encodeURIComponent(taskId)}`)
       if (a.ok) {
         const j = await a.json()
-        if (j?.data?.asset_uuid) setAssetUuid(j.data.asset_uuid)
+        if (j?.data?.asset_uuid) {
+          foundAsset = j.data.asset_uuid
+          setAssetUuid(foundAsset)
+        }
       }
-      // 若任务已成功且仍未解析到资产，调用 finalize 兜底生成资产
-      if (!assetUuid && state === 'success') {
+      // 若任务已成功且仍未解析到资产，调用 finalize 兜底生成资产（使用 nextState，避免竞态）
+      if (!foundAsset && nextState === 'success') {
         const f = await fetch('/api/hitem3d/finalize', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
