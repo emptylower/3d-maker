@@ -60,6 +60,7 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
     if (!objUrl) return false
 
     const origin = new URL(objUrl).origin
+    const baseQS = new URL(objUrl).search // keep auth_key style queries
     const headers: Record<string, string> = {}
     headers['Referer'] = process.env.HITEM3D_REFERER || origin
     headers['Origin'] = process.env.HITEM3D_REFERER || origin
@@ -70,14 +71,17 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
     const res = await fetch(objUrl, { headers })
     if (!res.ok) return false
     const objText = await res.text()
-    const objPathSeg = new URL(objUrl).pathname.split('/').pop() || 'model.obj'
+    const objUrlObj = new URL(objUrl)
+    const objPathSeg = objUrlObj.pathname.split('/').pop() || 'model.obj'
     await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(objText)), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(objPathSeg)}` }), contentType: 'text/plain', disposition: 'attachment' })
 
     const mtlFiles = parseMtllib(objText)
     const fetchedMtls: string[] = []
     for (const m of mtlFiles) {
       try {
-        const mUrl = new URL(m, objUrl).toString()
+        const mUrlObj = new URL(m, objUrl)
+        if (!mUrlObj.search) mUrlObj.search = baseQS
+        const mUrl = mUrlObj.toString()
         const mRes = await fetch(mUrl, { headers })
         if (!mRes.ok) continue
         const mText = await mRes.text()
@@ -86,7 +90,9 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
         const tex = parseTextures(mText)
         for (const t of tex) {
           try {
-            const tUrl = new URL(t, mUrl).toString()
+            const tUrlObj = new URL(t, mUrl)
+            if (!tUrlObj.search) tUrlObj.search = baseQS
+            const tUrl = tUrlObj.toString()
             const tRes = await fetch(tUrl, { headers })
             if (!tRes.ok) continue
             const buf = new Uint8Array(await tRes.arrayBuffer())
