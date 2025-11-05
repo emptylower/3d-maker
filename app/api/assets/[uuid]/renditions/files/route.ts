@@ -21,26 +21,6 @@ export async function GET(req: Request, ctx: any) {
     if (fmt !== 'obj') return Response.json({ code: -1, message: 'unsupported format' }, { status: 400 })
 
     const storage = newStorage()
-    // Try vendor-provided ZIP first (common for OBJ+MTL+textures)
-    const zipCandidates = buildZipCandidates(baseUrl)
-    if (debugEnabled) pushStep({ action: 'zip_candidates', urls: zipCandidates.map(redactUrl) })
-    for (const z of zipCandidates) {
-      try {
-        const head = await fetch(z, { method: 'HEAD', headers })
-        if (debugEnabled) pushStep({ action: 'fetch_zip_head', url: redactUrl(z), status: head.status, ok: head.ok })
-        let ok = head.ok
-        if (!ok) {
-          const get = await fetch(z, { method: 'GET', headers })
-          if (debugEnabled) pushStep({ action: 'fetch_zip_get', url: redactUrl(z), status: get.status, ok: get.ok })
-          ok = get.ok
-        }
-        if (!ok) continue
-        const keyZip = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/file.obj.zip` })
-        await storage.downloadAndUpload({ url: z, key: keyZip, disposition: 'attachment', headers, contentType: 'application/zip' })
-        if (debugEnabled) dbg.uploads.push({ key: keyZip, type: 'zip-pass-through' })
-        return { ok: true, debug: dbg }
-      } catch {}
-    }
     const prefix = `assets/${asset.user_uuid}/${asset.uuid}/obj/`
 
     // materialize if not exists
@@ -98,6 +78,26 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
     if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
 
     const storage = newStorage()
+    // Try vendor-provided ZIP first (common for OBJ+MTL+textures)
+    const zipCandidates = buildZipCandidates(baseUrl)
+    if (debugEnabled) pushStep({ action: 'zip_candidates', urls: zipCandidates.map(redactUrl) })
+    for (const z of zipCandidates) {
+      try {
+        const head = await fetch(z, { method: 'HEAD', headers })
+        if (debugEnabled) pushStep({ action: 'fetch_zip_head', url: redactUrl(z), status: head.status, ok: head.ok })
+        let ok = head.ok
+        if (!ok) {
+          const get = await fetch(z, { method: 'GET', headers })
+          if (debugEnabled) pushStep({ action: 'fetch_zip_get', url: redactUrl(z), status: get.status, ok: get.ok })
+          ok = get.ok
+        }
+        if (!ok) continue
+        const keyZip = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/file.obj.zip` })
+        await storage.downloadAndUpload({ url: z, key: keyZip, disposition: 'attachment', headers, contentType: 'application/zip' })
+        if (debugEnabled) dbg.uploads.push({ key: keyZip, type: 'zip-pass-through' })
+        return { ok: true, debug: dbg }
+      } catch {}
+    }
     const res = await fetch(objUrl, { headers })
     if (debugEnabled) pushStep({ action: 'fetch_obj', url: redactUrl(objUrl), status: res.status, ok: res.ok })
     if (!res.ok) return { ok: false, debug: dbg }
