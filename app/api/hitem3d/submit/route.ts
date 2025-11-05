@@ -92,7 +92,14 @@ export async function POST(req: Request) {
     }
 
     // compute credits cost
-    const credits_cost = resolveCreditsCost({ model, request_type, resolution })
+    let credits_cost: number
+    try {
+      credits_cost = resolveCreditsCost({ model, request_type, resolution })
+    } catch (e: any) {
+      // 映射“非法配置”等可预期错误为 400，返回可读提示
+      const msg = e?.message || 'invalid config'
+      return Response.json({ code: -1, message: msg }, { status: 400 })
+    }
 
     // check user credits balance
     const userCredits = await getUserCredits(user_uuid)

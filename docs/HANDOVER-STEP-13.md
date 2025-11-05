@@ -31,12 +31,16 @@
 - 成功注册自动登录（服务端转发 Set-Cookie）。
 - UI/集成测试覆盖输入校验与 cookie 生效。
 
-### M2 创作页（仅预览；默认几何，可选纹理）
+### M2 创作页（单图/多视图 + 人像）
 - 组件：`components/generator/GenerateForm.tsx`
   - 默认参数：model=hitem3dv1.5、resolution=1536、request_type=1（几何）。勾选“启用纹理”→ `request_type=3`。
   - 费用提示：基于 `resolveCreditsCost`。
   - 提交：`POST /api/hitem3d/submit`，采用 1B 策略（供应商提交成功后扣费）。
   - 默认输出格式：format=2（GLB），便于在线预览（依据 `create-task.md`）。
+  - 新增容器：`components/generator/GeneratePanel.tsx`，提供“通用/人像”切换与“单图/多视图”页签：
+    - 多视图表单：`components/generator/GenerateFormMulti.tsx`，前（必选）/后/左/右四视图；仅选择前视图→走 `images`，存在任一其他视图→走 `multi_images`，顺序固定“前/后/左/右”（未选不占位）。
+    - 人像模式固定纹理（`request_type=3`）、固定 `model=scene-portraitv1.5` 且仅 `resolution=1536`。
+    - UI/提交均对单张图片做 20MB 限制（与供应商一致）。
 - 后端改进：
   - `services/hitem3d.ts`：Token 获取主/备地址回退（任意非 2xx 即回退到 `/get-token`），错误更可读。
   - `app/api/hitem3d/submit/route.ts`：
@@ -76,6 +80,7 @@
 ## 3. 关键接口约定（新增/改造）
 - `POST /api/hitem3d/submit`
   - FormData：`images/multi_images`（任一必填）`request_type`（1/3）、`model`（hitem3dv1.5 默认）、`resolution`（1536 默认）、`format=2`（GLB）、`mesh_url?`（2 时必填）。
+  - 错误映射：当计费规则非法（如人像+非1536）时，返回 400 + 可读提示。
   - 1B 扣费策略：供应商提交成功后扣费；失败回调自动退款；幂等由 `generation_tasks` 保障。
 - `POST /api/hitem3d/callback`：见上（回调落库）。
 - `GET /api/hitem3d/status?task_id=...`：返回 `{ state, cover_url?, url? }`。
@@ -157,4 +162,3 @@
 - 403 下载：我们已附带 Referer/Origin（资源 origin）与 UA，仍遇到 403，请告知是否需要额外头（Appid/Cookie/签名）与直链有效期策略。
 
 > 注：本交接涵盖代码与配置的“现状”与“已知限制”。下一步可按“下一步建议”逐项推进，以打通端到端体验与可观测性。
-

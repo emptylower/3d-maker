@@ -9,30 +9,41 @@ function calcCost(withTexture: boolean) {
   return resolveCreditsCost({ model: "hitem3dv1.5", request_type: withTexture ? 3 : 1, resolution: "1536" })
 }
 
-export default function GenerateForm() {
+// 兼容旧用法：允许以 props 方式覆盖 model/resolution，并固定纹理
+export default function GenerateForm(props?: { __overrideModel?: 'hitem3dv1.5' | 'scene-portraitv1.5' | 'hitem3dv1', __overrideResolution?: '512' | '1024' | '1536' | '1536pro', __fixedTexture?: boolean }) {
   const [file, setFile] = useState<File | null>(null)
-  const [withTexture, setWithTexture] = useState(false)
+  const [withTexture, setWithTexture] = useState(!!props?.__fixedTexture)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState("")
 
-  const cost = useMemo(() => calcCost(withTexture), [withTexture])
+  const cost = useMemo(() => calcCost(props?.__fixedTexture ? true : withTexture), [withTexture, props?.__fixedTexture])
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setMessage("")
     if (!file) return
+    // 20MB 限制（对齐供应商文档）
+    if (file.size > 20 * 1024 * 1024) {
+      setMessage('单张图片大小不能超过20MB')
+      return
+    }
     try {
       setSubmitting(true)
       const fd = new FormData()
-      fd.append('request_type', String(withTexture ? 3 : 1))
-      fd.append('model', 'hitem3dv1.5')
-      fd.append('resolution', '1536')
+      fd.append('request_type', String((props?.__fixedTexture ? true : withTexture) ? 3 : 1))
+      fd.append('model', props?.__overrideModel || 'hitem3dv1.5')
+      fd.append('resolution', props?.__overrideResolution || '1536')
       fd.append('images', file, file.name || 'image.png')
       // 默认预览产出 GLB，便于在线预览
       fd.append('format', '2')
       const resp = await fetch('/api/hitem3d/submit', { method: 'POST', body: fd })
       if (resp.status === 401) {
         setMessage('请先登录后再提交')
+        return
+      }
+      if (resp.status === 400) {
+        const j = await resp.json().catch(() => null)
+        setMessage(j?.message || '参数错误')
         return
       }
       if (!resp.ok) {
@@ -83,15 +94,17 @@ export default function GenerateForm() {
       </div>
 
       <div className="grid gap-2">
-        <label className="inline-flex items-center gap-2">
-          <input
-            type="checkbox"
-            aria-label="启用纹理"
-            checked={withTexture}
-            onChange={(e) => setWithTexture(e.currentTarget.checked)}
-          />
-          <span>启用纹理</span>
-        </label>
+        {!props?.__fixedTexture && (
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              aria-label="启用纹理"
+              checked={withTexture}
+              onChange={(e) => setWithTexture(e.currentTarget.checked)}
+            />
+            <span>启用纹理</span>
+          </label>
+        )}
       </div>
 
       <div aria-live="polite" data-testid="cost-hint">预计消耗 {cost} 积分</div>
