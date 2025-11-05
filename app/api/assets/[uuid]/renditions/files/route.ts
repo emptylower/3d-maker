@@ -90,44 +90,60 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
 
     let mtlFiles = parseMtllib(objText)
     // Fallback: if mtllib not declared, try baseName.mtl (common convention like 0.mtl)
+    const objBaseName = (objPathSeg.replace(/\.[^.]+$/i, '') || '0')
     if (mtlFiles.length === 0) {
-      const guess = (objPathSeg.replace(/\.[^.]+$/i, '') || '0') + '.mtl'
+      const guess = objBaseName + '.mtl'
       mtlFiles = [guess]
     }
     if (debugEnabled) pushStep({ action: 'parse_mtllib', count: mtlFiles.length, files: mtlFiles })
+    // Build candidate mtl names: declared + <objBase>.mtl + 0.mtl + materials.mtl (dedup)
+    const mtlNameCandidates = Array.from(new Set<string>([
+      ...mtlFiles,
+      `${objBaseName}.mtl`,
+      `0.mtl`,
+      `materials.mtl`,
+    ]))
+    if (debugEnabled) pushStep({ action: 'mtl_candidates', items: mtlNameCandidates })
     const fetchedMtls: string[] = []
-    for (const m of mtlFiles) {
+    for (const m of mtlNameCandidates) {
       try {
         const mNorm = m.replace(/\\/g, '/')
-        const mUrlObj = new URL(mNorm, objUrl)
-        if (!mUrlObj.search) mUrlObj.search = baseQS
-        const mUrl = mUrlObj.toString()
-        const mRes = await fetch(mUrl, { headers })
-        if (debugEnabled) pushStep({ action: 'fetch_mtl', name: mNorm, url: redactUrl(mUrl), status: mRes.status, ok: mRes.ok })
-        if (!mRes.ok) continue
-        const mText = await mRes.text()
-        const mKey = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(mNorm)}` })
-        await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(mText)), key: mKey, contentType: 'text/plain', disposition: 'attachment' })
-        if (debugEnabled) dbg.uploads.push({ key: mKey, type: 'mtl' })
-        // textures referenced in this mtl
-        const tex = parseTextures(mText)
-        if (debugEnabled) pushStep({ action: 'parse_textures', from: mNorm, count: tex.length, files: tex })
-        for (const t of tex) {
+        const candidateUrls = buildMtlUrlCandidates(objUrl, mNorm)
+        if (debugEnabled) pushStep({ action: 'mtl_candidate_urls', name: mNorm, urls: candidateUrls.map(redactUrl) })
+        for (const raw of candidateUrls) {
           try {
-            const tNorm = t.replace(/\\/g, '/')
-            const tUrlObj = new URL(tNorm, mUrl)
-            if (!tUrlObj.search) tUrlObj.search = baseQS
-            const tUrl = tUrlObj.toString()
-            const tRes = await fetch(tUrl, { headers })
-            if (debugEnabled) pushStep({ action: 'fetch_texture', name: tNorm, url: redactUrl(tUrl), status: tRes.status, ok: tRes.ok })
-            if (!tRes.ok) continue
-            const buf = new Uint8Array(await tRes.arrayBuffer())
-            const tKey = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(tNorm)}` })
-            await storage.uploadFile({ body: Buffer.from(buf), key: tKey, disposition: 'attachment' })
-            if (debugEnabled) dbg.uploads.push({ key: tKey, type: 'texture' })
+            const mUrlObj = new URL(raw)
+            if (!mUrlObj.search) mUrlObj.search = baseQS
+            const mUrl = mUrlObj.toString()
+            const mRes = await fetch(mUrl, { headers })
+            if (debugEnabled) pushStep({ action: 'fetch_mtl', name: mNorm, url: redactUrl(mUrl), status: mRes.status, ok: mRes.ok })
+            if (!mRes.ok) continue
+            const mText = await mRes.text()
+            const mKey = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(mNorm)}` })
+            await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(mText)), key: mKey, contentType: 'text/plain', disposition: 'attachment' })
+            if (debugEnabled) dbg.uploads.push({ key: mKey, type: 'mtl' })
+            // textures referenced in this mtl
+            const tex = parseTextures(mText)
+            if (debugEnabled) pushStep({ action: 'parse_textures', from: mNorm, count: tex.length, files: tex })
+            for (const t of tex) {
+              try {
+                const tNorm = t.replace(/\\/g, '/')
+                const tUrlObj = new URL(tNorm, mUrl)
+                if (!tUrlObj.search) tUrlObj.search = baseQS
+                const tUrl = tUrlObj.toString()
+                const tRes = await fetch(tUrl, { headers })
+                if (debugEnabled) pushStep({ action: 'fetch_texture', name: tNorm, url: redactUrl(tUrl), status: tRes.status, ok: tRes.ok })
+                if (!tRes.ok) continue
+                const buf = new Uint8Array(await tRes.arrayBuffer())
+                const tKey = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(tNorm)}` })
+                await storage.uploadFile({ body: Buffer.from(buf), key: tKey, disposition: 'attachment' })
+                if (debugEnabled) dbg.uploads.push({ key: tKey, type: 'texture' })
+              } catch {}
+            }
+            fetchedMtls.push(m)
+            break
           } catch {}
         }
-        fetchedMtls.push(m)
       } catch {}
     }
     return { ok: true, debug: dbg }
@@ -189,4 +205,18 @@ function redactUrl(u: string) {
     if (!q) return `${url.origin}${url.pathname}`
     return `${url.origin}${url.pathname}?…`
   } catch { return 'invalid-url' }
+}
+
+function buildMtlUrlCandidates(objUrl: string, mtlName: string): string[] {
+  try {
+    const base = new URL(objUrl)
+    // same directory as OBJ
+    const same = new URL(mtlName, base).toString()
+    // heuristic: vendor sometimes places MTL in target/original (drop 'model' segment)
+    const alt = new URL(base.toString())
+    alt.pathname = alt.pathname.replace('/model/', '/')
+    const altUrl = new URL(mtlName, alt).toString()
+    const set = new Set<string>([same, altUrl])
+    return Array.from(set)
+  } catch { return [] }
 }
