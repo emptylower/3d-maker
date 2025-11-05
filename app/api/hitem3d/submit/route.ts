@@ -57,8 +57,15 @@ export async function POST(req: Request) {
     const resolution: Resolution = resolutionStr
 
     // optional
-    const faceStr = form.get('face')?.toString()
-    const face = faceStr !== undefined ? Number(faceStr) : undefined
+    // face: only forward when valid range [100000, 2000000]
+    const faceRaw = form.get('face')
+    let face: number | undefined = undefined
+    if (typeof faceRaw === 'string' && faceRaw.trim() !== '') {
+      const fv = Number(faceRaw)
+      if (Number.isFinite(fv) && fv >= 100000 && fv <= 2000000) {
+        face = fv
+      }
+    }
     const formatStr = form.get('format')?.toString()
     const formatNum = formatStr !== undefined ? Number(formatStr) : undefined
     const format: FileFormat | undefined =
@@ -107,7 +114,7 @@ export async function POST(req: Request) {
       request_type,
       model,
       resolution,
-      face: typeof face === 'number' && Number.isFinite(face) ? face : undefined,
+      face,
       format,
       mesh_url,
     }
