@@ -65,9 +65,10 @@ export async function POST(req: Request) {
     } as any)
 
     return Response.json({ code: 0, data: { asset_uuid } })
-  } catch (e) {
+  } catch (e: any) {
     console.error('finalize failed:', e)
-    return Response.json({ code: -1, message: 'finalize failed' }, { status: 500 })
+    const msg = e?.message || 'finalize failed'
+    // 直出关键信息便于预发排查（如 Bucket is required）
+    return Response.json({ code: -1, message: msg }, { status: 500 })
   }
 }
-

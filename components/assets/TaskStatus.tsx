@@ -5,10 +5,12 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
   const [state, setState] = useState<string>('processing')
   const [assetUuid, setAssetUuid] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
 
   const fetchOnce = async () => {
     try {
       setLoading(true)
+      setErr(null)
       let nextState = state
       const res = await fetch(`/api/hitem3d/status?task_id=${encodeURIComponent(taskId)}`)
       if (res.ok) {
@@ -37,6 +39,9 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
         if (f.ok) {
           const jf = await f.json()
           if (jf?.data?.asset_uuid) setAssetUuid(jf.data.asset_uuid)
+        } else {
+          const je = await f.json().catch(() => ({}))
+          if (je?.message) setErr(String(je.message))
         }
       }
     } finally {
@@ -70,6 +75,9 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
         <button className="underline disabled:opacity-60" onClick={fetchOnce} disabled={loading}>
           {state === 'success' ? '等待生成文件… 点击刷新' : '刷新状态'}
         </button>
+      )}
+      {err && (
+        <span className="text-red-500 text-xs">{err}</span>
       )}
     </div>
   )
