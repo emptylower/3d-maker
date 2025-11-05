@@ -270,7 +270,7 @@ async function collectObjPackageFiles(objText: string, objUrl: string, headers: 
   return { files, anyExtra: files.length > 0 }
 }
 
-// Minimal ZIP generator (store method, no compression)
+// Minimal ZIP generator (store method, no compression, with central directory)
 function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array {
   const enc = new TextEncoder()
   const LFH = 0x04034b50
@@ -289,7 +289,14 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
     const crc = crc32(f.data)
     const localHeader = [] as number[]
     // Local File Header
-    localHeader.push(...u32(LFH), ...u16(version), ...u16(0), ...u16(0), ...u16(0), ...u16(0))
+    localHeader.push(
+      ...u32(LFH),            // signature
+      ...u16(version),        // version needed to extract
+      ...u16(0),              // general purpose bit flag
+      ...u16(0),              // compression method (store)
+      ...u16(0),              // last mod file time
+      ...u16(0),              // last mod file date
+    )
     localHeader.push(...u32(crc), ...u32(f.data.length), ...u32(f.data.length))
     localHeader.push(...u16(nameBytes.length), ...u16(0))
     const localOffset = offset
@@ -303,15 +310,37 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
   const cdStart = offset
   for (const r of records) {
     const cd = [] as number[]
-    cd.push(...u32(CDH), ...u16(version), ...u16(version), ...u16(0), ...u16(0), ...u16(0), ...u16(0))
-    cd.push(...u32(r.crc), ...u32(r.size), ...u32(r.size))
-    cd.push(...u16(r.nameBytes.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0))
+    cd.push(
+      ...u32(CDH),        // signature
+      ...u16(version),    // version made by
+      ...u16(version),    // version needed to extract
+      ...u16(0),          // general purpose bit flag
+      ...u16(0),          // compression method
+      ...u16(0),          // last mod time
+      ...u16(0),          // last mod date
+      ...u32(r.crc),
+      ...u32(r.size),     // comp size
+      ...u32(r.size),     // uncomp size
+      ...u16(r.nameBytes.length), // file name length
+      ...u16(0),          // extra length
+      ...u16(0),          // file comment length
+      ...u16(0),          // disk number start
+      ...u16(0),          // internal file attrs
+      ...u32(0),          // external file attrs
+      ...u32(r.offset),   // relative offset of local header
+    )
     push(cd)
     pushBuf(r.nameBytes)
   }
   const cdSize = offset - cdStart
   const eocd = [] as number[]
-  eocd.push(...u32(EOCD), ...u16(0), ...u16(0), ...u16(records.length), ...u16(records.length))
+  eocd.push(
+    ...u32(EOCD),
+    ...u16(0),                 // number of this disk
+    ...u16(0),                 // number of the disk with the start of the central directory
+    ...u16(records.length),    // total entries on this disk
+    ...u16(records.length),    // total entries
+  )
   eocd.push(...u32(cdSize), ...u32(cdStart), ...u16(0))
   push(eocd)
 
