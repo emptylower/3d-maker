@@ -14,7 +14,7 @@ export default function AssetAutoPreviewGLB({ assetUuid }: { assetUuid: string }
         setLoading(true)
         setError(null)
         // 1) 先尝试原始文件（不限格式），若是 glb 则直接预览
-        const res0 = await fetch(`/api/assets/${assetUuid}/download?response=json`)
+        const res0 = await fetch(`/api/assets/${assetUuid}/download?response=json&disposition=inline`)
         if (res0.ok) {
           const j0 = await res0.json().catch(() => null)
           const u0 = j0?.data?.url as string | undefined
@@ -28,7 +28,7 @@ export default function AssetAutoPreviewGLB({ assetUuid }: { assetUuid: string }
           }
         }
         // 2) 再尝试 GLB 派生版本（rendition），若未生成则返回空
-        const res = await fetch(`/api/assets/${assetUuid}/download?format=glb&response=json`)
+        const res = await fetch(`/api/assets/${assetUuid}/download?format=glb&response=json&disposition=inline`)
         if (res.status === 409) { setUrl(null); return }
         if (!res.ok) { const js = await res.json().catch(() => null); throw new Error(js?.message || `HTTP ${res.status}`) }
         const js = await res.json(); const u = js?.data?.url as string

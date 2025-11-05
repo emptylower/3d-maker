@@ -26,6 +26,7 @@ export default function ViewerGLB({ src, poster }: { src: string; poster?: strin
     <model-viewer
       src={src}
       poster={poster}
+      crossorigin="anonymous"
       camera-controls
       auto-rotate
       ar
@@ -33,4 +34,3 @@ export default function ViewerGLB({ src, poster }: { src: string; poster?: strin
     />
   )
 }
-

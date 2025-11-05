@@ -149,10 +149,12 @@ export class Storage {
     key,
     bucket,
     expiresInSec,
+    responseDisposition,
   }: {
     key: string;
     bucket?: string;
     expiresInSec?: number;
+    responseDisposition?: string; // e.g. 'inline' or 'attachment; filename=file.glb'
   }) {
     if (!bucket) {
       bucket = process.env.STORAGE_BUCKET || "";
@@ -177,7 +179,7 @@ export class Storage {
       );
     }
 
-    const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+    const cmd = new GetObjectCommand({ Bucket: bucket, Key: key, ...(responseDisposition ? { ResponseContentDisposition: responseDisposition } : {}) });
     const url = await getSignedUrlFn(this.s3 as any, cmd as any, {
       expiresIn: ttl,
     });

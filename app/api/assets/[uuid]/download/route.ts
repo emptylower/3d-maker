@@ -28,6 +28,7 @@ export async function GET(req: Request, ctx: any) {
     const urlObj = new URL(req.url)
     const format = urlObj.searchParams.get('format')
     const responseMode = urlObj.searchParams.get('response')
+    const dispositionOverride = urlObj.searchParams.get('disposition') || undefined
     const wantsJson = responseMode === 'json' || format === 'json'
     const with_texture = urlObj.searchParams.get('with_texture') === 'true'
 
@@ -43,7 +44,7 @@ export async function GET(req: Request, ctx: any) {
       const mode = (process.env.STORAGE_DOWNLOAD_MODE || 'proxy').toLowerCase()
       const storage = newStorage()
       if (mode === 'presigned') {
-        const { url, expiresIn } = await storage.getSignedUrl({ key })
+        const { url, expiresIn } = await storage.getSignedUrl({ key, responseDisposition: dispositionOverride })
         // follow behavior: allow response=json (preferred) or legacy format=json
         if (wantsJson) {
           return Response.json({ code: 0, message: 'ok', data: { url, expires_in: expiresIn } })
@@ -82,7 +83,7 @@ export async function GET(req: Request, ctx: any) {
     const storage = newStorage()
 
     if (mode === 'presigned') {
-      const { url, expiresIn } = await storage.getSignedUrl({ key })
+      const { url, expiresIn } = await storage.getSignedUrl({ key, responseDisposition: dispositionOverride })
       if (wantsJson) {
         return Response.json({ code: 0, message: 'ok', data: { url, expires_in: expiresIn } })
       }
