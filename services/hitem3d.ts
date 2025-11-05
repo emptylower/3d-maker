@@ -134,12 +134,13 @@ export async function getToken(): Promise<string> {
     })
 
   let res = await doRequest(urlPrimary)
-  if (res.status === 404) {
-    res = await doRequest(urlFallback)
-  }
-
+  // 若主路径不可用（非 2xx），尝试回退路径
   if (!res.ok) {
-    throw new Hitem3DClientError('hitem3D 获取 token 失败', { status: res.status })
+    const tryFallback = await doRequest(urlFallback)
+    if (!tryFallback.ok) {
+      throw new Hitem3DClientError('hitem3D 获取 token 失败', { status: res.status })
+    }
+    res = tryFallback
   }
 
   const json = await parseJson<any>(res)

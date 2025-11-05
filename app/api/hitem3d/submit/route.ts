@@ -1,7 +1,7 @@
 import { getUserUuid } from '@/services/user'
 import { getUserCredits, decreaseCredits, CreditsTransType } from '@/services/credit'
 import { resolveCreditsCost } from '@/lib/credits/cost'
-import { submitTask } from '@/services/hitem3d'
+import { submitTask, Hitem3DClientError } from '@/services/hitem3d'
 import { insertGenerationTask } from '@/models/generation-task'
 
 type RequestType = 1 | 2 | 3
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
     return Response.json({ code: 0, message: 'ok', data: { task_id } })
   } catch (e: any) {
     console.error('submit failed:', e)
-    return Response.json({ code: -1, message: 'submit failed' }, { status: 500 })
+    const msg = e instanceof Hitem3DClientError ? e.message : 'submit failed'
+    return Response.json({ code: -1, message: msg }, { status: 500 })
   }
 }
-
