@@ -93,28 +93,40 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
     const task = await findGenerationTaskByTaskId(task_id)
     const vendorUrl = task?.hitem3d_file_url || ''
     if (!vendorUrl) return 'skip'
-    const altUrl = replaceExt(vendorUrl, fmt)
-    if (!altUrl) return 'skip'
+    const candidates = buildCandidateUrls(vendorUrl, fmt)
+    if (!candidates.length) return 'skip'
 
-    const origin = new URL(altUrl).origin
+    let chosen: { url: string; isZip: boolean } | null = null
+    for (const c of candidates) {
+      try {
+        const origin = new URL(c.url).origin
+        const headers: Record<string, string> = {}
+        headers['Referer'] = process.env.HITEM3D_REFERER || origin
+        headers['Origin'] = process.env.HITEM3D_REFERER || origin
+        headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
+        if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+        const head = await fetch(c.url, { method: 'HEAD', headers })
+        if (head.ok) { chosen = c; break }
+        const get = await fetch(c.url, { method: 'GET', headers })
+        if (get.ok) { chosen = c; break }
+      } catch {}
+    }
+    if (!chosen) {
+      await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'processing', credits_charged: 0, error: 'not_found' })
+      return 'processing'
+    }
+
+    const origin = new URL(chosen.url).origin
     const headers: Record<string, string> = {}
     headers['Referer'] = process.env.HITEM3D_REFERER || origin
     headers['Origin'] = process.env.HITEM3D_REFERER || origin
     headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
     if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
 
-    const probe = await fetch(altUrl, { method: 'HEAD', headers })
-    if (!probe.ok) {
-      const probeGet = await fetch(altUrl, { method: 'GET', headers })
-      if (!probeGet.ok) {
-        await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'processing', credits_charged: 0, error: String(probeGet.status) })
-        return 'processing'
-      }
-    }
-
     const storage = newStorage()
-    const key = buildAssetKey({ user_uuid, asset_uuid, filename: `file.${fmt}` })
-    await storage.downloadAndUpload({ url: altUrl, key, disposition: 'attachment', headers })
+    const filename = chosen.isZip ? `file.${fmt}.zip` : `file.${fmt}`
+    const key = buildAssetKey({ user_uuid, asset_uuid, filename })
+    await storage.downloadAndUpload({ url: chosen.url, key, disposition: 'attachment', headers, contentType: chosen.isZip ? 'application/zip' : undefined })
     await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
     return 'success'
   } catch (e) {
@@ -123,17 +135,21 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
   }
 }
 
-function replaceExt(u: string, fmt: Fmt): string | null {
+function buildCandidateUrls(u: string, fmt: Fmt): Array<{ url: string; isZip: boolean }> {
   try {
     const url = new URL(u)
     const segs = url.pathname.split('/')
     const last = segs[segs.length - 1]
-    if (!last.includes('.')) return null
+    if (!last.includes('.')) return []
     const base = last.substring(0, last.lastIndexOf('.'))
-    segs[segs.length - 1] = `${base}.${fmt}`
-    url.pathname = segs.join('/')
-    return url.toString()
-  } catch {
-    return null
-  }
+    const dir = segs.slice(0, -1).join('/')
+    const plain = new URL(url.toString()); plain.pathname = `${dir}/${base}.${fmt}`
+    const z1 = new URL(url.toString()); z1.pathname = `${dir}/${base}.${fmt}.zip`
+    const z2 = new URL(url.toString()); z2.pathname = `${dir}/${base}.zip`
+    return [
+      { url: z1.toString(), isZip: true },
+      { url: z2.toString(), isZip: true },
+      { url: plain.toString(), isZip: false },
+    ]
+  } catch { return [] }
 }
