@@ -124,11 +124,37 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
     if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
 
     const storage = newStorage()
-    const filename = chosen.isZip ? `file.${fmt}.zip` : `file.${fmt}`
-    const key = buildAssetKey({ user_uuid, asset_uuid, filename })
-    await storage.downloadAndUpload({ url: chosen.url, key, disposition: 'attachment', headers, contentType: chosen.isZip ? 'application/zip' : undefined })
-    await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
-    return 'success'
+    // If plain OBJ and supplier has no zip, attempt to package OBJ+MTL+textures into zip
+    if (!chosen.isZip && fmt === 'obj') {
+      try {
+        const objRes = await fetch(chosen.url, { headers })
+        if (!objRes.ok) throw new Error('obj_get_failed')
+        const objText = await objRes.text()
+        const { files, anyExtra } = await collectObjPackageFiles(objText, chosen.url, headers)
+        // Always include the OBJ itself (use base name from URL)
+        const objName = new URL(chosen.url).pathname.split('/').pop() || 'model.obj'
+        files.unshift({ name: sanitizeZipPath(objName), data: new TextEncoder().encode(objText) })
+        const zipData = buildZip(files)
+        const key = buildAssetKey({ user_uuid, asset_uuid, filename: `file.obj.zip` })
+        await storage.uploadFile({ body: Buffer.from(zipData), key, contentType: 'application/zip', disposition: 'attachment' })
+        await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
+        return 'success'
+      } catch {
+        // fallback to save plain obj
+        const key = buildAssetKey({ user_uuid, asset_uuid, filename: `file.${fmt}` })
+        await storage.downloadAndUpload({ url: chosen.url, key, disposition: 'attachment', headers })
+        await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
+        return 'success'
+      }
+    } else {
+      const filename = chosen.isZip ? `file.${fmt}.zip` : `file.${fmt}`
+      const key = buildAssetKey({ user_uuid, asset_uuid, filename })
+      await storage.downloadAndUpload({ url: chosen.url, key, disposition: 'attachment', headers, contentType: chosen.isZip ? 'application/zip' : undefined })
+      await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'success', file_key: key, credits_charged: 0, error: null })
+      return 'success'
+    }
+    // unreachable
+    // return 'success'
   } catch (e) {
     try { await upsertRendition({ asset_uuid, format: fmt, with_texture: false, state: 'processing', credits_charged: 0, error: 'exception' }) } catch {}
     return 'processing'
@@ -153,3 +179,128 @@ function buildCandidateUrls(u: string, fmt: Fmt): Array<{ url: string; isZip: bo
     ]
   } catch { return [] }
 }
+
+function sanitizeZipPath(name: string): string {
+  return name.replace(/^\/+/, '').replace(/\\/g, '/').replace(/\.+\//g, '')
+}
+
+async function collectObjPackageFiles(objText: string, objUrl: string, headers: Record<string, string>) {
+  const base = new URL(objUrl)
+  const mtlFiles = new Set<string>()
+  const texFiles = new Set<string>()
+  const lines = objText.split(/\r?\n/)
+  for (const line of lines) {
+    const t = line.trim()
+    if (t.toLowerCase().startsWith('mtllib ')) {
+      const parts = t.split(/\s+/).slice(1).filter(Boolean)
+      for (const p of parts) mtlFiles.add(p)
+    }
+  }
+  const files: Array<{ name: string; data: Uint8Array }> = []
+  const te = new TextEncoder()
+  for (const mtl of mtlFiles) {
+    try {
+      const url = new URL(mtl, base)
+      const res = await fetch(url.toString(), { headers })
+      if (!res.ok) continue
+      const txt = await res.text()
+      files.push({ name: sanitizeZipPath(mtl), data: te.encode(txt) })
+      // parse textures
+      const tl = txt.split(/\r?\n/)
+      for (const l of tl) {
+        const s = l.trim()
+        const lower = s.toLowerCase()
+        if (lower.startsWith('map_') || lower.startsWith('bump') || lower.startsWith('disp')) {
+          const tokens = s.split(/\s+/).filter(Boolean)
+          const cand = tokens.filter(x => !x.startsWith('-')).pop()
+          if (cand) texFiles.add(cand)
+        }
+      }
+    } catch {}
+  }
+  // fetch textures
+  for (const tex of texFiles) {
+    try {
+      const url = new URL(tex, base)
+      const res = await fetch(url.toString(), { headers })
+      if (!res.ok) continue
+      const buf = new Uint8Array(await res.arrayBuffer())
+      files.push({ name: sanitizeZipPath(tex), data: buf })
+    } catch {}
+  }
+  return { files, anyExtra: files.length > 0 }
+}
+
+// Minimal ZIP generator (store method, no compression)
+function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array {
+  const enc = new TextEncoder()
+  const LFH = 0x04034b50
+  const CDH = 0x02014b50
+  const EOCD = 0x06054b50
+  const version = 20
+  let offset = 0
+  const records: any[] = []
+  const chunks: Uint8Array[] = []
+
+  const push = (arr: number[]) => { const u = new Uint8Array(arr); chunks.push(u); offset += u.length }
+  const pushBuf = (buf: Uint8Array) => { chunks.push(buf); offset += buf.length }
+
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name)
+    const crc = crc32(f.data)
+    const localHeader = [] as number[]
+    // Local File Header
+    localHeader.push(...u32(LFH), ...u16(version), ...u16(0), ...u16(0), ...u16(0), ...u16(0))
+    localHeader.push(...u32(crc), ...u32(f.data.length), ...u32(f.data.length))
+    localHeader.push(...u16(nameBytes.length), ...u16(0))
+    const localOffset = offset
+    push(localHeader)
+    pushBuf(nameBytes)
+    pushBuf(f.data)
+
+    records.push({ nameBytes, crc, size: f.data.length, offset: localOffset })
+  }
+
+  const cdStart = offset
+  for (const r of records) {
+    const cd = [] as number[]
+    cd.push(...u32(CDH), ...u16(version), ...u16(version), ...u16(0), ...u16(0), ...u16(0), ...u16(0))
+    cd.push(...u32(r.crc), ...u32(r.size), ...u32(r.size))
+    cd.push(...u16(r.nameBytes.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0))
+    push(cd)
+    pushBuf(r.nameBytes)
+  }
+  const cdSize = offset - cdStart
+  const eocd = [] as number[]
+  eocd.push(...u32(EOCD), ...u16(0), ...u16(0), ...u16(records.length), ...u16(records.length))
+  eocd.push(...u32(cdSize), ...u32(cdStart), ...u16(0))
+  push(eocd)
+
+  // join chunks
+  let total = 0; for (const c of chunks) total += c.length
+  const out = new Uint8Array(total)
+  let pos = 0
+  for (const c of chunks) { out.set(c, pos); pos += c.length }
+  return out
+}
+
+function u16(n: number) { return [n & 0xff, (n >>> 8) & 0xff] }
+function u32(n: number) { return [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff] }
+
+function crc32(data: Uint8Array): number {
+  let c = ~0 >>> 0
+  for (let i = 0; i < data.length; i++) {
+    c = (c >>> 8) ^ CRC32_TABLE[(c ^ data[i]) & 0xff]
+  }
+  return (~c) >>> 0
+}
+
+const CRC32_TABLE = (() => {
+  const t = new Array<number>(256)
+  for (let i = 0; i < 256; i++) {
+    let c = i
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1)
+    t[i] = c >>> 0
+  }
+  return t
+})()
