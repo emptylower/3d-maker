@@ -19,6 +19,18 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
         const j = await a.json()
         if (j?.data?.asset_uuid) setAssetUuid(j.data.asset_uuid)
       }
+      // 若任务已成功且仍未解析到资产，调用 finalize 兜底生成资产
+      if (!assetUuid && state === 'success') {
+        const f = await fetch('/api/hitem3d/finalize', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ task_id: taskId }),
+        })
+        if (f.ok) {
+          const jf = await f.json()
+          if (jf?.data?.asset_uuid) setAssetUuid(jf.data.asset_uuid)
+        }
+      }
     } finally {
       setLoading(false)
     }
