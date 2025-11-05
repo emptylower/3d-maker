@@ -32,7 +32,11 @@ export async function POST(req: Request) {
     if (cover_url) {
       const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
       const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `cover.${ext}` })
-      await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline' })
+      const headers: Record<string, string> = {}
+      headers['Referer'] = process.env.HITEM3D_REFERER || (process.env.HITEM3D_API_BASE?.replace(/\/$/, '') || 'https://api.hitem3d.ai')
+      headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
+      if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+      await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers })
       cover_key = key
     }
 
@@ -41,7 +45,11 @@ export async function POST(req: Request) {
     if (file_url) {
       const ext = (new URL(file_url).pathname.split('.').pop() || 'glb').toLowerCase()
       const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `file.${ext}` })
-      await storage.downloadAndUpload({ url: file_url, key, disposition: 'attachment' })
+      const headers: Record<string, string> = {}
+      headers['Referer'] = process.env.HITEM3D_REFERER || (process.env.HITEM3D_API_BASE?.replace(/\/$/, '') || 'https://api.hitem3d.ai')
+      headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
+      if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+      await storage.downloadAndUpload({ url: file_url, key, disposition: 'attachment', headers })
       file_key_full = key
     }
 

@@ -90,14 +90,16 @@ export class Storage {
     bucket,
     contentType,
     disposition = "inline",
+    headers,
   }: {
     url: string;
     key: string;
     bucket?: string;
     contentType?: string;
     disposition?: "inline" | "attachment";
+    headers?: Record<string, string>;
   }) {
-    const response = await fetch(url);
+    const response = await fetch(url, { headers });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
