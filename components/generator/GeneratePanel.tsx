@@ -13,51 +13,39 @@ export default function GeneratePanel() {
   const onClickTab = (t: "single" | "multi") => setTab(t);
 
   return (
-    <div className="grid gap-6" data-testid="generate-panel">
-      {/* 顶部模式切换：通用 / 人像 */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          aria-label="切换通用"
-          className={`px-3 py-1 rounded ${mode === 'general' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}
-          onClick={() => onClickMode('general')}
-        >通用</button>
-        <button
-          type="button"
-          aria-label="切换人像"
-          className={`px-3 py-1 rounded ${mode === 'portrait' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}
-          onClick={() => onClickMode('portrait')}
-        >人像</button>
+    <div className="grid gap-4" data-testid="generate-panel">
+      {/* 顶部模式切换：通用 / 人像（胶囊按钮） */}
+      <div className="flex items-center gap-3">
+        <div className="inline-flex rounded-full bg-muted p-1">
+          <button type="button" aria-label="切换通用" onClick={() => onClickMode('general')}
+            className={`px-4 py-1 rounded-full text-sm ${mode==='general'?'bg-background shadow':'opacity-70'}`}>通用</button>
+          <button type="button" aria-label="切换人像" onClick={() => onClickMode('portrait')}
+            className={`px-4 py-1 rounded-full text-sm ${mode==='portrait'?'bg-background shadow':'opacity-70'}`}>人像</button>
+        </div>
       </div>
 
-      {/* 页签：单图 / 多视图 */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          aria-label="单图生成3D"
-          className={`px-3 py-1 rounded ${tab === 'single' ? 'bg-muted-foreground/10' : 'bg-secondary'}`}
-          onClick={() => onClickTab('single')}
-        >单图生成3D</button>
-        <button
-          type="button"
-          aria-label="多视图生成3D"
-          className={`px-3 py-1 rounded ${tab === 'multi' ? 'bg-muted-foreground/10' : 'bg-secondary'}`}
-          onClick={() => onClickTab('multi')}
-        >多视图生成3D</button>
-      </div>
+      {/* 主卡片 */}
+      <div className="rounded-2xl border bg-card/60 backdrop-blur p-4">
+        {/* 页签标题 */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-6 text-sm">
+            <button type="button" aria-label="单图生成3D" onClick={() => onClickTab('single')}
+              className={`pb-1 ${tab==='single'?'border-b-2 border-primary font-semibold':'opacity-70'}`}>单图生成3D</button>
+            <button type="button" aria-label="多视图生成3D" onClick={() => onClickTab('multi')}
+              className={`pb-1 ${tab==='multi'?'border-b-2 border-primary font-semibold':'opacity-70'}`}>多视图生成3D</button>
+          </div>
+          <a className="text-xs opacity-70 hover:opacity-100" href="#" onClick={(e)=>e.preventDefault()}>上传指南</a>
+        </div>
 
-      {tab === 'single' ? (
-        // portrait 模式下固定纹理（请求类型=3）、固定 model 与分辨率
-        <GenerateForm
-          // 以下 prop 只在 portrait 模式时生效；保持向后兼容默认 props
-          {...(mode === 'portrait'
-            ? { __overrideModel: 'scene-portraitv1.5', __overrideResolution: '1536', __fixedTexture: true }
-            : {})}
-        />
-      ) : (
-        <GenerateFormMulti mode={mode} />
-      )}
+        {/* 内容区 */}
+        <div className="">
+          {tab === 'single' ? (
+            <GenerateForm {...(mode === 'portrait' ? { __overrideModel: 'scene-portraitv1.5', __overrideResolution: '1536', __fixedTexture: true } : {})} />
+          ) : (
+            <GenerateFormMulti mode={mode} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-
