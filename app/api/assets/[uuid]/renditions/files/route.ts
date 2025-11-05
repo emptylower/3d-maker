@@ -79,24 +79,26 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
     const fetchedMtls: string[] = []
     for (const m of mtlFiles) {
       try {
-        const mUrlObj = new URL(m, objUrl)
+        const mNorm = m.replace(/\\/g, '/')
+        const mUrlObj = new URL(mNorm, objUrl)
         if (!mUrlObj.search) mUrlObj.search = baseQS
         const mUrl = mUrlObj.toString()
         const mRes = await fetch(mUrl, { headers })
         if (!mRes.ok) continue
         const mText = await mRes.text()
-        await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(mText)), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(m)}` }), contentType: 'text/plain', disposition: 'attachment' })
+        await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(mText)), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(mNorm)}` }), contentType: 'text/plain', disposition: 'attachment' })
         // textures referenced in this mtl
         const tex = parseTextures(mText)
         for (const t of tex) {
           try {
-            const tUrlObj = new URL(t, mUrl)
+            const tNorm = t.replace(/\\/g, '/')
+            const tUrlObj = new URL(tNorm, mUrl)
             if (!tUrlObj.search) tUrlObj.search = baseQS
             const tUrl = tUrlObj.toString()
             const tRes = await fetch(tUrl, { headers })
             if (!tRes.ok) continue
             const buf = new Uint8Array(await tRes.arrayBuffer())
-            await storage.uploadFile({ body: Buffer.from(buf), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(t)}` }), disposition: 'attachment' })
+            await storage.uploadFile({ body: Buffer.from(buf), key: buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(tNorm)}` }), disposition: 'attachment' })
           } catch {}
         }
         fetchedMtls.push(m)

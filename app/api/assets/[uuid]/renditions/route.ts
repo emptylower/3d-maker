@@ -225,6 +225,7 @@ function sanitizeZipPath(name: string): string {
 
 async function collectObjPackageFiles(objText: string, objUrl: string, headers: Record<string, string>) {
   const base = new URL(objUrl)
+  const baseQS = base.search
   const mtlFiles = new Set<string>()
   const texFiles = new Set<string>()
   const lines = objText.split(/\r?\n/)
@@ -239,11 +240,13 @@ async function collectObjPackageFiles(objText: string, objUrl: string, headers: 
   const te = new TextEncoder()
   for (const mtl of mtlFiles) {
     try {
-      const url = new URL(mtl, base)
-      const res = await fetch(url.toString(), { headers })
+      const mNorm = mtl.replace(/\\/g, '/')
+      const mUrlObj = new URL(mNorm, base)
+      if (!mUrlObj.search) mUrlObj.search = baseQS
+      const res = await fetch(mUrlObj.toString(), { headers })
       if (!res.ok) continue
       const txt = await res.text()
-      files.push({ name: sanitizeZipPath(mtl), data: te.encode(txt) })
+      files.push({ name: sanitizeZipPath(mNorm), data: te.encode(txt) })
       // parse textures
       const tl = txt.split(/\r?\n/)
       for (const l of tl) {
@@ -260,11 +263,13 @@ async function collectObjPackageFiles(objText: string, objUrl: string, headers: 
   // fetch textures
   for (const tex of texFiles) {
     try {
-      const url = new URL(tex, base)
-      const res = await fetch(url.toString(), { headers })
+      const tNorm = tex.replace(/\\/g, '/')
+      const tUrlObj = new URL(tNorm, base)
+      if (!tUrlObj.search) tUrlObj.search = baseQS
+      const res = await fetch(tUrlObj.toString(), { headers })
       if (!res.ok) continue
       const buf = new Uint8Array(await res.arrayBuffer())
-      files.push({ name: sanitizeZipPath(tex), data: buf })
+      files.push({ name: sanitizeZipPath(tNorm), data: buf })
     } catch {}
   }
   return { files, anyExtra: files.length > 0 }
