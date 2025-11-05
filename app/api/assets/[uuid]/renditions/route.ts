@@ -276,7 +276,8 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
   const LFH = 0x04034b50
   const CDH = 0x02014b50
   const EOCD = 0x06054b50
-  const version = 20
+  const versionNeeded = 20
+  const versionMadeBy = (0x03 << 8) | 20 // Unix + version 2.0
   const now = new Date()
   const dosTime = toDosTime(now)
   const dosDate = toDosDate(now)
@@ -294,8 +295,8 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
     // Local File Header
     localHeader.push(
       ...u32(LFH),            // signature
-      ...u16(version),        // version needed to extract
-      ...u16(0),              // general purpose bit flag
+      ...u16(versionNeeded),  // version needed to extract
+      ...u16(0),              // general purpose bit flag (no UTF-8 flag)
       ...u16(0),              // compression method (store)
       ...u16(dosTime),        // last mod file time
       ...u16(dosDate),        // last mod file date
@@ -315,8 +316,8 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
     const cd = [] as number[]
     cd.push(
       ...u32(CDH),        // signature
-      ...u16(version),    // version made by
-      ...u16(version),    // version needed to extract
+      ...u16(versionMadeBy), // version made by
+      ...u16(versionNeeded), // version needed to extract
       ...u16(0),          // general purpose bit flag
       ...u16(0),          // compression method
       ...u16(dosTime),    // last mod time
@@ -329,7 +330,7 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Uint8Array 
       ...u16(0),          // file comment length
       ...u16(0),          // disk number start
       ...u16(0),          // internal file attrs
-      ...u32(0),          // external file attrs
+      ...u32((0o100644 & 0xffff) << 16), // external file attrs (regular file 0644)
       ...u32(r.offset),   // relative offset of local header
     )
     push(cd)

@@ -1,6 +1,6 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
 interface StorageConfig {
   endpoint: string;
@@ -184,5 +184,16 @@ export class Storage {
       expiresIn: ttl,
     });
     return { url, expiresIn: ttl };
+  }
+
+  async listObjects({ prefix, bucket }: { prefix: string; bucket?: string }) {
+    if (!bucket) bucket = process.env.STORAGE_BUCKET || "";
+    if (!bucket) throw new Error("Bucket is required");
+    const cmd = new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix });
+    const res: any = await (this.s3 as any).send(cmd);
+    const keys: string[] = (res.Contents || [])
+      .map((o: any) => o?.Key)
+      .filter((k: any) => typeof k === "string");
+    return keys;
   }
 }
