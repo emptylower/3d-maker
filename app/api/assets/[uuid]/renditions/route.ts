@@ -236,6 +236,13 @@ async function collectObjPackageFiles(objText: string, objUrl: string, headers: 
       for (const p of parts) mtlFiles.add(p)
     }
   }
+  // Fallback: if no mtllib found, try <objBaseName>.mtl
+  if (mtlFiles.size === 0) {
+    const baseName = base.pathname.split('/').pop() || '0.obj'
+    const guess = (baseName.replace(/\.[^.]+$/i, '') || '0') + '.mtl'
+    mtlFiles.add(guess)
+  }
+
   const files: Array<{ name: string; data: Uint8Array }> = []
   const te = new TextEncoder()
   for (const mtl of mtlFiles) {

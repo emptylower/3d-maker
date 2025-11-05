@@ -87,7 +87,12 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
     await storage.uploadFile({ body: Buffer.from(new TextEncoder().encode(objText)), key: objKey, contentType: 'text/plain', disposition: 'attachment' })
     if (debugEnabled) dbg.uploads.push({ key: objKey, type: 'obj' })
 
-    const mtlFiles = parseMtllib(objText)
+    let mtlFiles = parseMtllib(objText)
+    // Fallback: if mtllib not declared, try baseName.mtl (common convention like 0.mtl)
+    if (mtlFiles.length === 0) {
+      const guess = (objPathSeg.replace(/\.[^.]+$/i, '') || '0') + '.mtl'
+      mtlFiles = [guess]
+    }
     if (debugEnabled) pushStep({ action: 'parse_mtllib', count: mtlFiles.length, files: mtlFiles })
     const fetchedMtls: string[] = []
     for (const m of mtlFiles) {
