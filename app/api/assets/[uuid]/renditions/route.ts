@@ -28,6 +28,14 @@ export async function POST(req: Request, ctx: any) {
       return Response.json({ code: 0, data: { state: existing.state, task_id: existing.task_id || undefined } }, { status: 200 })
     }
 
+    // Instant-ready optimization: when requesting the same format as original and texture=false
+    const instantReady = (process.env.RENDITIONS_INSTANT_READY_FOR_ORIGINAL || '0') === '1'
+    const sameAsOriginal = asset.file_format && asset.file_key_full && asset.file_format.toLowerCase() === fmt && with_texture === false
+    if (instantReady && sameAsOriginal) {
+      await upsertRendition({ asset_uuid: asset.uuid, format: fmt, with_texture, state: 'success', file_key: asset.file_key_full, credits_charged: 0 })
+      return Response.json({ code: 0, data: { state: 'success' } }, { status: 200 })
+    }
+
     // create or move to processing. No credits charged here per rules.
     await upsertRendition({ asset_uuid: asset.uuid, format: fmt, with_texture, state: 'processing', credits_charged: 0 })
     return Response.json({ code: 0, data: { state: 'processing' } }, { status: 202 })
@@ -60,4 +68,3 @@ export async function GET(req: Request, ctx: any) {
     return Response.json({ code: -1, message: 'internal error' }, { status: 500 })
   }
 }
-
