@@ -29,7 +29,7 @@
     ],
     "show_sign": true,
     "show_theme": true,
-    "show_locale": true
+    "show_locale": false
   },
   "hero": {
     "title": "几小时内快速构建 AI 创业项目，而不是几天",
