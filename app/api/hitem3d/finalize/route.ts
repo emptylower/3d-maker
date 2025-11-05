@@ -4,7 +4,7 @@ import { queryTask } from '@/services/hitem3d'
 import { newStorage } from '@/lib/storage'
 import { buildAssetKey } from '@/lib/storage-key'
 import { getUuid } from '@/lib/hash'
-import { insertAsset } from '@/models/asset'
+import { insertAsset, findAssetByTaskId, updateAssetByUuid } from '@/models/asset'
 
 export async function POST(req: Request) {
   try {
@@ -57,16 +57,30 @@ export async function POST(req: Request) {
       file_key_full = key
     }
 
-    await insertAsset({
-      uuid: asset_uuid,
-      user_uuid: task.user_uuid,
-      task_id: task.task_id,
-      status: 'active',
-      cover_key,
-      file_key_full,
-      file_format: file_key_full ? (file_key_full.split('.').pop() || '') : undefined,
-      created_at: new Date().toISOString(),
-    } as any)
+    // If an existing asset with same task_id exists but without file, update it; else insert new
+    const existing = await findAssetByTaskId(task.task_id)
+    if (existing && !existing.file_key_full) {
+      await updateAssetByUuid(existing.uuid, {
+        status: 'active',
+        cover_key,
+        file_key_full,
+        file_format: file_key_full ? (file_key_full.split('.').pop() || '') : undefined,
+        task_id: task.task_id,
+        user_uuid: task.user_uuid,
+        updated_at: new Date().toISOString(),
+      } as any)
+    } else {
+      await insertAsset({
+        uuid: asset_uuid,
+        user_uuid: task.user_uuid,
+        task_id: task.task_id,
+        status: 'active',
+        cover_key,
+        file_key_full,
+        file_format: file_key_full ? (file_key_full.split('.').pop() || '') : undefined,
+        created_at: new Date().toISOString(),
+      } as any)
+    }
 
     await updateGenerationTask(task_id, {
       state: 'success',

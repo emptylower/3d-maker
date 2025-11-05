@@ -31,3 +31,31 @@ Authorization: Bearer {{apiKey}}
   "provider": "openrouter",
   "model": "deepseek/deepseek-r1"
 }
+
+### hitem3d callback health
+GET {{baseUrl}}/api/hitem3d/callback
+
+### hitem3d finalize (single)
+POST {{baseUrl}}/api/hitem3d/finalize
+Content-Type: application/json
+
+{
+  "task_id": "<replace-with-task-id>"
+}
+
+### hitem3d finalize batch (dry-run)
+POST {{baseUrl}}/api/hitem3d/finalize/batch
+Content-Type: application/json
+
+{
+  "dry_run": true,
+  "limit": 20
+}
+
+### hitem3d finalize batch (run)
+POST {{baseUrl}}/api/hitem3d/finalize/batch
+Content-Type: application/json
+
+{
+  "limit": 20
+}

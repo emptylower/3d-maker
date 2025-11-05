@@ -56,6 +56,12 @@ export async function findAssetByTaskId(task_id: string): Promise<Asset | null> 
   return (data as any) || null
 }
 
+export async function updateAssetByUuid(uuid: string, patch: Partial<Asset>): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase.from('assets').update(patch as any).eq('uuid', uuid)
+  if (error) throw error
+}
+
 export async function listAssetsByUser(user_uuid: string, page = 1, limit = 50): Promise<Asset[]> {
   const supabase = getSupabaseClient()
   const from = (page - 1) * limit
