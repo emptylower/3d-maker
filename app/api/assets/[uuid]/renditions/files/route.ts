@@ -26,7 +26,8 @@ export async function GET(req: Request, ctx: any) {
     // materialize if not exists
     let keys = await storage.listObjects({ prefix })
     let debugInfo: any | undefined
-    if (!keys || keys.length === 0) {
+    const onlyObjPresent = (arr: string[]) => arr.length > 0 && arr.every(k => /\/obj\/[^/]+\.obj$/i.test(k))
+    if (!keys || keys.length === 0 || onlyObjPresent(keys)) {
       const res = await materializeObjFiles(asset.user_uuid, asset.uuid, asset.task_id || '', debugEnabled)
       debugInfo = res.debug
       if (res.ok) keys = await storage.listObjects({ prefix })
