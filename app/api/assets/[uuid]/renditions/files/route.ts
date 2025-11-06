@@ -178,8 +178,16 @@ function replaceExt(u: string, ext: 'obj'): string | null {
     const segs = url.pathname.split('/')
     const last = segs[segs.length - 1]
     if (!last.includes('.')) return null
-    const base = last.substring(0, last.lastIndexOf('.'))
-    segs[segs.length - 1] = `${base}.${ext}`
+    // Strip known extensions (e.g., .obj.zip -> base)
+    const known = new Set(['zip', 'obj', 'glb', 'stl', 'fbx'])
+    let name = last
+    for (let i = 0; i < 2; i++) {
+      const idx = name.lastIndexOf('.')
+      if (idx === -1) break
+      const e = name.substring(idx + 1).toLowerCase()
+      if (known.has(e)) { name = name.substring(0, idx) } else { break }
+    }
+    segs[segs.length - 1] = `${name}.${ext}`
     url.pathname = segs.join('/')
     return url.toString()
   } catch { return null }
@@ -247,10 +255,19 @@ function buildZipCandidates(vendorUrl: string): string[] {
     const segs = u.pathname.split('/')
     const last = segs[segs.length - 1]
     if (!last.includes('.')) return []
-    const base = last.substring(0, last.lastIndexOf('.'))
+    const known = new Set(['zip', 'obj', 'glb', 'stl', 'fbx'])
+    let name = last
+    for (let i = 0; i < 2; i++) {
+      const idx = name.lastIndexOf('.')
+      if (idx === -1) break
+      const e = name.substring(idx + 1).toLowerCase()
+      if (known.has(e)) { name = name.substring(0, idx) } else { break }
+    }
     const dir = segs.slice(0, -1).join('/')
-    const z1 = new URL(u.toString()); z1.pathname = `${dir}/${base}.obj.zip`
-    const z2 = new URL(u.toString()); z2.pathname = `${dir}/${base}.zip`
-    return [z1.toString(), z2.toString()]
+    const z1 = new URL(u.toString()); z1.pathname = `${dir}/${name}.obj.zip`
+    const z2 = new URL(u.toString()); z2.pathname = `${dir}/${name}.zip`
+    const out = [z1.toString()]
+    if (z2.toString() !== z1.toString()) out.push(z2.toString())
+    return out
   } catch { return [] }
 }

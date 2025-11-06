@@ -206,16 +206,27 @@ function buildCandidateUrls(u: string, fmt: Fmt): Array<{ url: string; isZip: bo
     const segs = url.pathname.split('/')
     const last = segs[segs.length - 1]
     if (!last.includes('.')) return []
-    const base = last.substring(0, last.lastIndexOf('.'))
+    // Robust base extraction: strip known extensions (zip + format) if present
+    const known = new Set(['zip', 'obj', 'glb', 'stl', 'fbx'])
+    let name = last
+    for (let i = 0; i < 2; i++) {
+      const idx = name.lastIndexOf('.')
+      if (idx === -1) break
+      const ext = name.substring(idx + 1).toLowerCase()
+      if (known.has(ext)) { name = name.substring(0, idx) } else { break }
+    }
+    const base = name
     const dir = segs.slice(0, -1).join('/')
-    const plain = new URL(url.toString()); plain.pathname = `${dir}/${base}.${fmt}`
     const z1 = new URL(url.toString()); z1.pathname = `${dir}/${base}.${fmt}.zip`
+    const plain = new URL(url.toString()); plain.pathname = `${dir}/${base}.${fmt}`
     const z2 = new URL(url.toString()); z2.pathname = `${dir}/${base}.zip`
-    return [
+    // Prefer exact fmt zip, then plain fmt; generic zip last (and only meaningful for OBJ)
+    const list: Array<{ url: string; isZip: boolean }> = [
       { url: z1.toString(), isZip: true },
-      { url: z2.toString(), isZip: true },
       { url: plain.toString(), isZip: false },
     ]
+    if (fmt === 'obj') list.push({ url: z2.toString(), isZip: true })
+    return list
   } catch { return [] }
 }
 
