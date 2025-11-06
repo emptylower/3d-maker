@@ -31,6 +31,7 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
 
   const areExtraViewsPresent = !!(back || left || right);
 
+  const modelChoices = useMemo(() => (mode === 'portrait' ? (['scene-portraitv1.5'] as Model[]) : (['hitem3dv1','hitem3dv1.5'] as Model[])), [mode])
   const allowedRes = useMemo(() => resByModel[model], [model])
   if (!allowedRes.includes(resolution)) {
     setTimeout(() => setResolution(allowedRes[allowedRes.length - 1]), 0)
@@ -138,8 +139,8 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
         <div className="flex items-center gap-3 text-sm">
           <label className="inline-flex items-center gap-2">
             <span>模型</span>
-            <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)}>
-              {allModels.map((m) => (
+            <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)} disabled={mode==='portrait'}>
+              {modelChoices.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>

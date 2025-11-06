@@ -17,15 +17,17 @@ const resByModel: Record<Model, Resolution[]> = {
 }
 
 // 兼容旧用法：允许以 props 方式覆盖 model/resolution，并固定纹理
-export default function GenerateForm(props?: { __overrideModel?: Model, __overrideResolution?: Resolution, __fixedTexture?: boolean }) {
+export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', __overrideModel?: Model, __overrideResolution?: Resolution, __fixedTexture?: boolean }) {
   const [file, setFile] = useState<File | null>(null)
-  const [model, setModel] = useState<Model>(props?.__overrideModel || 'hitem3dv1.5')
+  const effectiveMode = props?.__mode || (props?.__overrideModel === 'scene-portraitv1.5' ? 'portrait' : 'general')
+  const [model, setModel] = useState<Model>(props?.__overrideModel || (effectiveMode==='portrait' ? 'scene-portraitv1.5' : 'hitem3dv1.5'))
   const [resolution, setResolution] = useState<Resolution>((props?.__overrideResolution as Resolution) || '1536')
   const [withTexture, setWithTexture] = useState(!!props?.__fixedTexture)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState("")
 
   // Keep resolution in sync with model constraints
+  const modelChoices = useMemo(() => (effectiveMode === 'portrait' ? (['scene-portraitv1.5'] as Model[]) : (['hitem3dv1','hitem3dv1.5'] as Model[])), [effectiveMode])
   const allowedRes = useMemo(() => resByModel[model], [model])
   if (!allowedRes.includes(resolution)) {
     // pick nearest sensible default
@@ -103,8 +105,8 @@ export default function GenerateForm(props?: { __overrideModel?: Model, __overri
         <div className="flex items-center gap-3 text-sm">
           <label className="inline-flex items-center gap-2">
             <span>模型</span>
-            <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)}>
-              {allModels.map((m) => (
+            <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)} disabled={effectiveMode==='portrait'}>
+              {modelChoices.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
@@ -117,7 +119,7 @@ export default function GenerateForm(props?: { __overrideModel?: Model, __overri
               ))}
             </select>
           </label>
-          {model !== 'scene-portraitv1.5' && !props?.__fixedTexture && (
+          {model !== 'scene-portraitv1.5' && !props?.__fixedTexture && effectiveMode!=='portrait' && (
             <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"

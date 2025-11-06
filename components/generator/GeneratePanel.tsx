@@ -40,7 +40,7 @@ export default function GeneratePanel() {
         {/* 内容区 */}
         <div className="">
           {tab === 'single' ? (
-            <GenerateForm {...(mode === 'portrait' ? { __overrideModel: 'scene-portraitv1.5', __overrideResolution: '1536', __fixedTexture: true } : {})} />
+            <GenerateForm __mode={mode} {...(mode === 'portrait' ? { __overrideModel: 'scene-portraitv1.5', __overrideResolution: '1536', __fixedTexture: true } : {})} />
           ) : (
             <GenerateFormMulti mode={mode} />
           )}
