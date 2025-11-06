@@ -14,8 +14,7 @@
       "items": [
         { "title": "创作", "url": "/generate" },
         { "title": "资产", "url": "/my-assets" },
-        { "title": "广场", "url": "/plaza" },
-        { "title": "登录/注册", "url": "/auth/signin" }
+        { "title": "广场", "url": "/plaza" }
       ]
     },
     "buttons": [

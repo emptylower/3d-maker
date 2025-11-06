@@ -5,7 +5,7 @@
     "keywords": "ShipAny, AI SaaS 模板, NextJS 模板"
   },
   "user": {
-    "sign_in": "登录",
+    "sign_in": "登录/注册",
     "sign_out": "退出登录",
     "credits": "额度",
     "api_keys": "API 密钥",
