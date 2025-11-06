@@ -1,4 +1,4 @@
-import { getUserUuid } from '@/services/user'
+import { getUserUuid, getUserInfo } from '@/services/user'
 import { getUserCredits, decreaseCredits, CreditsTransType } from '@/services/credit'
 import { resolveCreditsCost } from '@/lib/credits/cost'
 import { submitTask, Hitem3DClientError } from '@/services/hitem3d'
@@ -31,6 +31,12 @@ export async function POST(req: Request) {
     if (!user_uuid) {
       return Response.json({ code: -1, message: 'no auth' }, { status: 401 })
     }
+    const user = await getUserInfo()
+    const isAdmin = (() => {
+      const admins = (process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim()).filter(Boolean)
+      const email = (user as any)?.email as string | undefined
+      return !!email && admins.includes(email)
+    })()
 
     const form = await req.formData()
 
@@ -91,21 +97,21 @@ export async function POST(req: Request) {
       return Response.json({ code: -1, message: 'mesh_url required when request_type=2' }, { status: 400 })
     }
 
-    // compute credits cost
-    let credits_cost: number
-    try {
-      credits_cost = resolveCreditsCost({ model, request_type, resolution })
-    } catch (e: any) {
-      // 映射“非法配置”等可预期错误为 400，返回可读提示
-      const msg = e?.message || 'invalid config'
-      return Response.json({ code: -1, message: msg }, { status: 400 })
-    }
-
-    // check user credits balance
-    const userCredits = await getUserCredits(user_uuid)
-    const left = userCredits?.left_credits || 0
-    if (left < credits_cost) {
-      return Response.json({ code: 2000, message: 'INSUFFICIENT_CREDITS' })
+    // compute credits cost (admin bypass)
+    let credits_cost: number = 0
+    if (!isAdmin) {
+      try {
+        credits_cost = resolveCreditsCost({ model, request_type, resolution })
+      } catch (e: any) {
+        const msg = e?.message || 'invalid config'
+        return Response.json({ code: -1, message: msg }, { status: 400 })
+      }
+      // check user credits balance
+      const userCredits = await getUserCredits(user_uuid)
+      const left = userCredits?.left_credits || 0
+      if (left < credits_cost) {
+        return Response.json({ code: 2000, message: 'INSUFFICIENT_CREDITS' })
+      }
     }
 
     // default face by resolution when not provided
@@ -153,8 +159,10 @@ export async function POST(req: Request) {
     const submitRes = await submitTask(svcInput)
     const task_id = submitRes.task_id
 
-    // then decrease credits
-    await decreaseCredits({ user_uuid, trans_type: CreditsTransType.Generate3D, credits: credits_cost })
+    // then decrease credits (admin bypass)
+    if (!isAdmin && credits_cost > 0) {
+      await decreaseCredits({ user_uuid, trans_type: CreditsTransType.Generate3D, credits: credits_cost })
+    }
 
     // and write generation task (state=created)
     try {
@@ -167,7 +175,7 @@ export async function POST(req: Request) {
         face: faceToUse,
         format,
         state: 'created',
-        credits_charged: credits_cost,
+        credits_charged: isAdmin ? 0 : credits_cost,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

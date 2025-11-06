@@ -7,12 +7,22 @@ import { ImageUp } from "lucide-react";
 import { resolveCreditsCost } from "@/lib/credits/cost";
 
 type Mode = "general" | "portrait";
+type Model = 'hitem3dv1' | 'hitem3dv1.5' | 'scene-portraitv1.5'
+type Resolution = '512' | '1024' | '1536' | '1536pro'
+const allModels: Model[] = ['hitem3dv1', 'hitem3dv1.5', 'scene-portraitv1.5']
+const resByModel: Record<Model, Resolution[]> = {
+  'hitem3dv1': ['512', '1024', '1536'],
+  'hitem3dv1.5': ['512', '1024', '1536', '1536pro'],
+  'scene-portraitv1.5': ['1536'],
+}
 
 export default function GenerateFormMulti({ mode = "general" as Mode }) {
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
   const [left, setLeft] = useState<File | null>(null);
   const [right, setRight] = useState<File | null>(null);
+  const [model, setModel] = useState<Model>(mode === 'portrait' ? 'scene-portraitv1.5' : 'hitem3dv1.5')
+  const [resolution, setResolution] = useState<Resolution>('1536')
   const [withTexture, setWithTexture] = useState(mode === "portrait" ? true : false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -21,11 +31,15 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
 
   const areExtraViewsPresent = !!(back || left || right);
 
+  const allowedRes = useMemo(() => resByModel[model], [model])
+  if (!allowedRes.includes(resolution)) {
+    setTimeout(() => setResolution(allowedRes[allowedRes.length - 1]), 0)
+  }
+  const textureEffective = model === 'scene-portraitv1.5' ? true : withTexture
   const cost = useMemo(() => {
-    const request_type = (mode === "portrait" ? 3 : withTexture ? 3 : 1) as 1 | 3;
-    const model = (mode === "portrait" ? "scene-portraitv1.5" : "hitem3dv1.5") as any;
-    return resolveCreditsCost({ model, request_type, resolution: "1536" });
-  }, [mode, withTexture]);
+    const request_type = (textureEffective ? 3 : 1) as 1 | 3
+    return resolveCreditsCost({ model: model as any, request_type, resolution: resolution as any });
+  }, [model, resolution, textureEffective]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,11 +59,10 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
     try {
       setSubmitting(true);
       const fd = new FormData();
-      const request_type = mode === "portrait" ? 3 : withTexture ? 3 : 1;
-      const model = mode === "portrait" ? "scene-portraitv1.5" : "hitem3dv1.5";
+      const request_type = textureEffective ? 3 : 1;
       fd.append("request_type", String(request_type));
       fd.append("model", model);
-      fd.append("resolution", "1536");
+      fd.append("resolution", resolution);
       // 默认产出 OBJ（下载友好），后台会自动补齐其它格式（含 GLB 便于预览）
       fd.append("format", "1");
 
@@ -123,9 +136,23 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
       {/* 底部操作条 */}
       <div className="flex items-center justify-between rounded-xl border bg-muted/10 px-4 py-3">
         <div className="flex items-center gap-3 text-sm">
-          <div className="px-3 py-1 rounded bg-muted">{mode==='portrait' ? '人像 v1.5' : 'v1.5'}</div>
-          <div className="px-3 py-1 rounded bg-muted">1536P³</div>
-          {mode==='general' && (
+          <label className="inline-flex items-center gap-2">
+            <span>模型</span>
+            <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)}>
+              {allModels.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </label>
+          <label className="inline-flex items-center gap-2">
+            <span>分辨率</span>
+            <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
+              {allowedRes.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+          {model !== 'scene-portraitv1.5' && (
             <label className="inline-flex items-center gap-2">
               <input type="checkbox" aria-label="启用纹理" checked={withTexture} onChange={(e) => setWithTexture(e.currentTarget.checked)} />
               <span>纹理</span>

@@ -6,18 +6,35 @@ import { Label } from "@/components/ui/label";
 import { resolveCreditsCost } from "@/lib/credits/cost";
 import { ImageUp } from "lucide-react";
 
-function calcCost(withTexture: boolean) {
-  return resolveCreditsCost({ model: "hitem3dv1.5", request_type: withTexture ? 3 : 1, resolution: "1536" })
+type Model = 'hitem3dv1' | 'hitem3dv1.5' | 'scene-portraitv1.5'
+type Resolution = '512' | '1024' | '1536' | '1536pro'
+
+const allModels: Model[] = ['hitem3dv1', 'hitem3dv1.5', 'scene-portraitv1.5']
+const resByModel: Record<Model, Resolution[]> = {
+  'hitem3dv1': ['512', '1024', '1536'],
+  'hitem3dv1.5': ['512', '1024', '1536', '1536pro'],
+  'scene-portraitv1.5': ['1536'],
 }
 
 // 兼容旧用法：允许以 props 方式覆盖 model/resolution，并固定纹理
-export default function GenerateForm(props?: { __overrideModel?: 'hitem3dv1.5' | 'scene-portraitv1.5' | 'hitem3dv1', __overrideResolution?: '512' | '1024' | '1536' | '1536pro', __fixedTexture?: boolean }) {
+export default function GenerateForm(props?: { __overrideModel?: Model, __overrideResolution?: Resolution, __fixedTexture?: boolean }) {
   const [file, setFile] = useState<File | null>(null)
+  const [model, setModel] = useState<Model>(props?.__overrideModel || 'hitem3dv1.5')
+  const [resolution, setResolution] = useState<Resolution>((props?.__overrideResolution as Resolution) || '1536')
   const [withTexture, setWithTexture] = useState(!!props?.__fixedTexture)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState("")
 
-  const cost = useMemo(() => calcCost(props?.__fixedTexture ? true : withTexture), [withTexture, props?.__fixedTexture])
+  // Keep resolution in sync with model constraints
+  const allowedRes = useMemo(() => resByModel[model], [model])
+  if (!allowedRes.includes(resolution)) {
+    // pick nearest sensible default
+    setTimeout(() => setResolution(allowedRes[allowedRes.length - 1]), 0)
+  }
+  // Portrait模型固定纹理
+  const textureEffective = model === 'scene-portraitv1.5' ? true : (props?.__fixedTexture ? true : withTexture)
+
+  const cost = useMemo(() => resolveCreditsCost({ model, request_type: textureEffective ? 3 : 1, resolution }), [model, textureEffective, resolution])
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,9 +48,9 @@ export default function GenerateForm(props?: { __overrideModel?: 'hitem3dv1.5' |
     try {
       setSubmitting(true)
       const fd = new FormData()
-      fd.append('request_type', String((props?.__fixedTexture ? true : withTexture) ? 3 : 1))
-      fd.append('model', props?.__overrideModel || 'hitem3dv1.5')
-      fd.append('resolution', props?.__overrideResolution || '1536')
+      fd.append('request_type', String(textureEffective ? 3 : 1))
+      fd.append('model', model)
+      fd.append('resolution', resolution)
       fd.append('images', file, file.name || 'image.png')
       // 默认产出 OBJ（下载友好），后台会自动补齐其它格式（含 GLB 便于预览）
       fd.append('format', '1')
@@ -84,9 +101,23 @@ export default function GenerateForm(props?: { __overrideModel?: 'hitem3dv1.5' |
       {/* 底部操作条 */}
       <div className="flex items-center justify-between rounded-xl border bg-muted/10 px-4 py-3">
         <div className="flex items-center gap-3 text-sm">
-          <div className="px-3 py-1 rounded bg-muted">{props?.__overrideModel === 'scene-portraitv1.5' ? '人像 v1.5' : 'v1.5'}</div>
-          <div className="px-3 py-1 rounded bg-muted">{props?.__overrideResolution || '1536'}P³</div>
-          {!props?.__fixedTexture && (
+          <label className="inline-flex items-center gap-2">
+            <span>模型</span>
+            <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)}>
+              {allModels.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </label>
+          <label className="inline-flex items-center gap-2">
+            <span>分辨率</span>
+            <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
+              {allowedRes.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+          {model !== 'scene-portraitv1.5' && !props?.__fixedTexture && (
             <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"
