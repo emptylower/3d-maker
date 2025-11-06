@@ -37,6 +37,14 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
   const textureEffective = model === 'scene-portraitv1.5' ? true : (props?.__fixedTexture ? true : withTexture)
 
   const cost = useMemo(() => resolveCreditsCost({ model, request_type: textureEffective ? 3 : 1, resolution }), [model, textureEffective, resolution])
+  // Ensure portrait mode strictly uses scene-portraitv1.5 @ 1536 with texture on
+  React.useEffect(() => {
+    if (effectiveMode === 'portrait') {
+      if (model !== 'scene-portraitv1.5') setModel('scene-portraitv1.5')
+      if (resolution !== '1536') setResolution('1536')
+      if (!withTexture) setWithTexture(true)
+    }
+  }, [effectiveMode])
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -103,22 +111,31 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
       {/* 底部操作条 */}
       <div className="flex items-center justify-between rounded-xl border bg-muted/10 px-4 py-3">
         <div className="flex items-center gap-3 text-sm">
-          <label className="inline-flex items-center gap-2">
-            <span>模型</span>
-            <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)} disabled={effectiveMode==='portrait'}>
-              {modelChoices.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <span>分辨率</span>
-            <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
-              {allowedRes.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </label>
+          {effectiveMode !== 'portrait' ? (
+            <>
+              <label className="inline-flex items-center gap-2">
+                <span>模型</span>
+                <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)}>
+                  {modelChoices.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <span>分辨率</span>
+                <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
+                  {allowedRes.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : (
+            <>
+              <div className="px-3 py-1 rounded bg-muted">人像 v1.5</div>
+              <div className="px-3 py-1 rounded bg-muted">1536P³</div>
+            </>
+          )}
           {model !== 'scene-portraitv1.5' && !props?.__fixedTexture && effectiveMode!=='portrait' && (
             <label className="inline-flex items-center gap-2">
               <input

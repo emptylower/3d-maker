@@ -33,6 +33,13 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
 
   const modelChoices = useMemo(() => (mode === 'portrait' ? (['scene-portraitv1.5'] as Model[]) : (['hitem3dv1','hitem3dv1.5'] as Model[])), [mode])
   const allowedRes = useMemo(() => resByModel[model], [model])
+  React.useEffect(() => {
+    if (mode === 'portrait') {
+      if (model !== 'scene-portraitv1.5') setModel('scene-portraitv1.5')
+      if (resolution !== '1536') setResolution('1536')
+      if (!withTexture) setWithTexture(true)
+    }
+  }, [mode])
   if (!allowedRes.includes(resolution)) {
     setTimeout(() => setResolution(allowedRes[allowedRes.length - 1]), 0)
   }
@@ -145,14 +152,18 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
               ))}
             </select>
           </label>
-          <label className="inline-flex items-center gap-2">
-            <span>分辨率</span>
-            <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
-              {allowedRes.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </label>
+          {mode !== 'portrait' ? (
+            <label className="inline-flex items-center gap-2">
+              <span>分辨率</span>
+              <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
+                {allowedRes.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="px-3 py-1 rounded bg-muted">1536P³</div>
+          )}
           {model !== 'scene-portraitv1.5' && (
             <label className="inline-flex items-center gap-2">
               <input type="checkbox" aria-label="启用纹理" checked={withTexture} onChange={(e) => setWithTexture(e.currentTarget.checked)} />
