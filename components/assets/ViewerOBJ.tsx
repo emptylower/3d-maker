@@ -4,12 +4,25 @@ import React, { useEffect, useRef, useState } from 'react'
 type FileItem = { name: string; url: string }
 
 async function loadThreeModules() {
-  // Load from npm packages (bundled by Next), safe for SSR since called in useEffect.
-  const THREE = await import('three')
-  const { MTLLoader } = await import('three/examples/jsm/loaders/MTLLoader.js')
-  const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js')
-  const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js')
-  return { THREE, MTLLoader, OBJLoader, OrbitControls }
+  // Inject a module script at runtime; avoids webpack handling https imports at build time
+  const w = window as any
+  if (w.__ThreeMods && w.__ThreeMods.THREE && w.__ThreeMods.OBJLoader) return w.__ThreeMods
+  const code = `
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { MTLLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/MTLLoader.js';
+    import { OBJLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/OBJLoader.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    window.__ThreeMods = { THREE, MTLLoader, OBJLoader, OrbitControls };
+  `
+  await new Promise<void>((resolve, reject) => {
+    const s = document.createElement('script')
+    s.type = 'module'
+    s.textContent = code
+    s.onload = () => resolve()
+    s.onerror = () => reject(new Error('failed to load three modules'))
+    document.head.appendChild(s)
+  })
+  return w.__ThreeMods
 }
 
 function prefer<T>(arr: T[], pick: (x: T) => boolean): T | null {
