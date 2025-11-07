@@ -23,6 +23,7 @@ import {
 import { SiGithub, SiGmail, SiGoogle } from "react-icons/si";
 
 import { Button } from "@/components/ui/button";
+import CredentialsLoginForm from "@/components/sign/credentials-login-form";
 import { cn } from "@/lib/utils";
 import { signIn } from "next-auth/react";
 import { useAppContext } from "@/contexts/app";
@@ -115,6 +116,18 @@ function ProfileForm({ className }: React.ComponentProps<"form">) {
           {t("sign_modal.github_sign_in")}
         </Button>
       )}
+
+      {/* Divider */}
+      <div className="relative text-center text-xs text-muted-foreground my-1 after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
+        <span className="relative z-10 bg-background px-2">
+          {t("sign_modal.or")} {t("sign_modal.email_sign_in")}
+        </span>
+      </div>
+
+      {/* Credentials (email + password) login */}
+      <div className="border rounded-md p-3 bg-background w-full">
+        <CredentialsLoginForm />
+      </div>
     </div>
   );
 }
