@@ -3,21 +3,12 @@ import React, { useEffect, useRef, useState } from 'react'
 
 type FileItem = { name: string; url: string }
 
-declare global {
-  interface Window {
-    THREE?: any
-  }
-}
-
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = src
-    s.async = true
-    s.onload = () => resolve()
-    s.onerror = () => reject(new Error(`failed to load ${src}`))
-    document.head.appendChild(s)
-  })
+async function loadThreeModules() {
+  const THREE = await import('https://unpkg.com/three@0.160.0/build/three.module.js?module')
+  const { MTLLoader } = await import('https://unpkg.com/three@0.160.0/examples/jsm/loaders/MTLLoader.js?module')
+  const { OBJLoader } = await import('https://unpkg.com/three@0.160.0/examples/jsm/loaders/OBJLoader.js?module')
+  const { OrbitControls } = await import('https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js?module')
+  return { THREE, MTLLoader, OBJLoader, OrbitControls }
 }
 
 function prefer<T>(arr: T[], pick: (x: T) => boolean): T | null {
@@ -45,28 +36,10 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
 
     const run = async () => {
       try {
-        // Ensure scripts
-        if (!window.THREE) {
-          await loadScript('https://unpkg.com/three@0.160.0/build/three.min.js')
-        }
-        // examples loaders
-        // @ts-ignore
-        if (!(window as any).THREE.MTLLoader) {
-          await loadScript('https://unpkg.com/three@0.160.0/examples/js/loaders/MTLLoader.js')
-        }
-        // @ts-ignore
-        if (!(window as any).THREE.OBJLoader) {
-          await loadScript('https://unpkg.com/three@0.160.0/examples/js/loaders/OBJLoader.js')
-        }
-        // Controls (optional)
-        // @ts-ignore
-        if (!(window as any).THREE.OrbitControls) {
-          await loadScript('https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js')
-        }
+        const { THREE, MTLLoader, OBJLoader, OrbitControls } = await loadThreeModules()
 
         if (disposed) return
 
-        const THREE = (window as any).THREE
         const el = containerRef.current!
         const width = el.clientWidth || el.parentElement?.clientWidth || 600
         const heightPx = height
@@ -112,8 +85,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         scene.add(grid)
 
         // Controls
-        // @ts-ignore
-        controls = new THREE.OrbitControls(camera, renderer.domElement)
+        controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
         controls.target.set(0, 0.4, 0)
 
@@ -139,7 +111,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         // Load materials (optional)
         let materials: any = null
         if (mtl) {
-          const mtlLoader = new THREE.MTLLoader(manager)
+          const mtlLoader = new MTLLoader(manager)
           mtlLoader.setMaterialOptions({ ignoreZeroRGBs: true })
           await new Promise<void>((resolve, reject) => {
             mtlLoader.load(mtl.url, (mat: any) => {
@@ -150,7 +122,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           })
         }
 
-        const objLoader = new THREE.OBJLoader(manager)
+        const objLoader = new OBJLoader(manager)
         if (materials) objLoader.setMaterials(materials)
         const root: any = await new Promise((resolve, reject) => {
           objLoader.load(obj.url, (g: any) => resolve(g), undefined, (e: any) => reject(e))
@@ -205,4 +177,3 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
     </div>
   )
 }
-
