@@ -51,7 +51,7 @@ export async function GET(req: Request, ctx: any) {
 
     // sign
     const files: Array<{ name: string; url: string }> = []
-    for (const key of keys) {
+    for (const key of keys.filter(k => /\/obj\/[^/]+\.(obj|mtl|png|jpe?g|webp)$/i.test(k))) {
       const rawName = key.substring(prefix.length)
       const cleanName = dropQueryAndHash(rawName)
       const disp = `attachment; filename=${encodeURIComponent(cleanName)}`
