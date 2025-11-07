@@ -62,8 +62,11 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         const map = new Map<string, string>()
         for (const f of files) {
           const n = normalizeName(f.name)
+          const b = basename(n)
           map.set(n, f.url)
-          map.set(basename(n), f.url)
+          map.set(b, f.url)
+          map.set(n.toLowerCase(), f.url)
+          map.set(b.toLowerCase(), f.url)
         }
 
         // pick obj & mtl
@@ -112,14 +115,14 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
             const idx = u.pathname.lastIndexOf('/obj/')
             const key = idx >= 0 ? u.pathname.substring(idx + 5) : u.pathname.split('/').pop() || ''
             const clean = normalizeName(key)
-            const byExact = map.get(clean)
+            const byExact = map.get(clean) || map.get(clean.toLowerCase())
             if (byExact) return byExact
-            const byBase = map.get(basename(clean))
+            const byBase = map.get(basename(clean)) || map.get(basename(clean).toLowerCase())
             if (byBase) return byBase
           } catch {}
           // fallback
           const bn = basename(url)
-          return map.get(bn) || url
+          return map.get(bn) || map.get(bn.toLowerCase()) || url
         })
 
         // Load materials (optional)
