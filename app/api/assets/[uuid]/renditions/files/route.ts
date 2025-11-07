@@ -3,6 +3,7 @@ import { findAssetByUuid } from '@/models/asset'
 import { findGenerationTaskByTaskId } from '@/models/generation-task'
 import { newStorage } from '@/lib/storage'
 import { buildAssetKey } from '@/lib/storage-key'
+import { inflateRawSync } from 'zlib'
 
 type Fmt = 'obj'
 
@@ -23,14 +24,23 @@ export async function GET(req: Request, ctx: any) {
     const storage = newStorage()
     const prefix = `assets/${asset.user_uuid}/${asset.uuid}/obj/`
 
-    // materialize if not exists
+    // materialize if not exists (or only zip present)
     let keys = await storage.listObjects({ prefix })
     let debugInfo: any | undefined
-    const onlyObjPresent = (arr: string[]) => arr.length > 0 && arr.every(k => /\/obj\/[^/]+\.obj$/i.test(k))
-    if (!keys || keys.length === 0 || onlyObjPresent(keys)) {
+    const hasRenderable = (arr: string[]) => arr.some(k => /\/obj\/[^/]+\.(obj|mtl|png|jpe?g|webp)$/i.test(k))
+    if (!keys || keys.length === 0 || !hasRenderable(keys)) {
       const res = await materializeObjFiles(asset.user_uuid, asset.uuid, asset.task_id || '', debugEnabled)
       debugInfo = res.debug
       if (res.ok) keys = await storage.listObjects({ prefix })
+      // As a fallback, try to extract from existing zip in R2 (file.obj.zip under root or obj/)
+      if ((!keys || keys.length === 0 || !hasRenderable(keys))) {
+        const extracted = await tryExtractFromExistingZipInStorage(asset.user_uuid, asset.uuid, debugEnabled)
+        if (debugEnabled) {
+          debugInfo = debugInfo || {}
+          debugInfo.extract_from_storage = extracted
+        }
+        if (extracted?.ok) keys = await storage.listObjects({ prefix })
+      }
     }
 
     if (!keys || keys.length === 0) {
@@ -95,6 +105,11 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
         const keyZip = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/file.obj.zip` })
         await storage.downloadAndUpload({ url: z, key: keyZip, disposition: 'attachment', headers, contentType: 'application/zip' })
         if (debugEnabled) dbg.uploads.push({ key: keyZip, type: 'zip-pass-through' })
+        // Try extract zip entries to obj/
+        try {
+          const res = await extractZipKeyToObj(user_uuid, asset_uuid, keyZip, debugEnabled)
+          if (debugEnabled) dbg.uploads.push({ extracted: res?.count || 0 })
+        } catch {}
         return { ok: true, debug: dbg }
       } catch {}
     }
@@ -170,6 +185,107 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
   } catch (e) {
     return { ok: false, debug: { error: (e as any)?.message || String(e) } }
   }
+}
+
+async function tryExtractFromExistingZipInStorage(user_uuid: string, asset_uuid: string, debugEnabled = false): Promise<{ ok: boolean; count?: number; note?: string }> {
+  try {
+    const storage = newStorage()
+    const basePrefix = `assets/${user_uuid}/${asset_uuid}/`
+    const keys = await storage.listObjects({ prefix: basePrefix })
+    const candidates = (keys || []).filter(k => /\/file\.obj\.zip$/i.test(k) || /\/obj\/file\.obj\.zip$/i.test(k))
+    if (!candidates.length) return { ok: false, note: 'no_zip_found' }
+    let total = 0
+    for (const zipKey of candidates) {
+      try {
+        const r = await extractZipKeyToObj(user_uuid, asset_uuid, zipKey, debugEnabled)
+        total += r?.count || 0
+      } catch {}
+    }
+    return { ok: total > 0, count: total }
+  } catch (e) {
+    return { ok: false, note: 'exception' }
+  }
+}
+
+async function extractZipKeyToObj(user_uuid: string, asset_uuid: string, zipKey: string, debugEnabled = false): Promise<{ count: number }> {
+  const storage = newStorage()
+  const { url } = await storage.getSignedUrl({ key: zipKey })
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('zip_fetch_failed')
+  const buf = new Uint8Array(await res.arrayBuffer())
+  const entries = unzipEntries(buf)
+  let count = 0
+  for (const e of entries) {
+    const name = dropQueryAndHash(e.name)
+    if (!/\.(obj|mtl|png|jpe?g|webp)$/i.test(name)) continue
+    const key = buildAssetKey({ user_uuid, asset_uuid, filename: `obj/${sanitize(name)}` })
+    const lower = name.toLowerCase()
+    let contentType: string | undefined
+    if (lower.endsWith('.png')) contentType = 'image/png'
+    else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) contentType = 'image/jpeg'
+    else if (lower.endsWith('.webp')) contentType = 'image/webp'
+    else if (lower.endsWith('.obj') || lower.endsWith('.mtl')) contentType = 'text/plain'
+    await storage.uploadFile({ body: Buffer.from(e.data), key, disposition: 'attachment', contentType })
+    count++
+  }
+  return { count }
+}
+
+type ZipEntry = { name: string; data: Uint8Array }
+function unzipEntries(data: Uint8Array): ZipEntry[] {
+  const sigEOCD = 0x06054b50
+  const sigCDH = 0x02014b50
+  const sigLFH = 0x04034b50
+  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  // find EOCD by scanning backwards (max comment 64k)
+  const maxBack = Math.min(data.byteLength, 0xffff + 22)
+  let eocdPos = -1
+  for (let i = data.byteLength - 22; i >= data.byteLength - maxBack; i--) {
+    if (i < 0) break
+    if (dv.getUint32(i, true) === sigEOCD) { eocdPos = i; break }
+  }
+  if (eocdPos < 0) return []
+  const cdSize = dv.getUint32(eocdPos + 12, true)
+  const cdOffset = dv.getUint32(eocdPos + 16, true)
+  const out: ZipEntry[] = []
+  let p = cdOffset
+  while (p < cdOffset + cdSize) {
+    if (dv.getUint32(p, true) !== sigCDH) break
+    const compMethod = dv.getUint16(p + 10, true)
+    const compSize = dv.getUint32(p + 20, true)
+    const unCompSize = dv.getUint32(p + 24, true)
+    const nameLen = dv.getUint16(p + 28, true)
+    const extraLen = dv.getUint16(p + 30, true)
+    const commentLen = dv.getUint16(p + 32, true)
+    const lfhOffset = dv.getUint32(p + 42, true)
+    const nameBytes = data.slice(p + 46, p + 46 + nameLen)
+    const name = new TextDecoder().decode(nameBytes)
+    p += 46 + nameLen + extraLen + commentLen
+    // read local header to get data start
+    if (dv.getUint32(lfhOffset, true) !== sigLFH) continue
+    const nlen = dv.getUint16(lfhOffset + 26, true)
+    const xlen = dv.getUint16(lfhOffset + 28, true)
+    const dataStart = lfhOffset + 30 + nlen + xlen
+    const comp = data.slice(dataStart, dataStart + compSize)
+    let body: Uint8Array | null = null
+    if (compMethod === 0) {
+      body = comp
+    } else if (compMethod === 8) {
+      try {
+        const inflated = inflateRawSync(Buffer.from(comp))
+        body = new Uint8Array(inflated.buffer, inflated.byteOffset, inflated.length)
+      } catch {
+        body = null
+      }
+    }
+    if (body && body.length === unCompSize) {
+      out.push({ name, data: body })
+    } else if (body) {
+      // still push when sizes mismatch; many tools omit sizes in LFH
+      out.push({ name, data: body })
+    }
+  }
+  return out
 }
 
 function replaceExt(u: string, ext: 'obj'): string | null {
