@@ -7,7 +7,8 @@ type Fmt = 'obj'|'glb'|'stl'|'fbx'
 type State = 'idle'|'processing'|'ready'
 
 export default function RenditionsPanel({ assetUuid }: { assetUuid: string }) {
-  const formats: Fmt[] = ['obj','glb','stl','fbx']
+  // 当前仅允许生成 OBJ，其余格式暂不开放
+  const formats: Fmt[] = ['obj']
   const [states, setStates] = useState<Record<Fmt, State>>({ obj: 'idle', glb: 'idle', stl: 'idle', fbx: 'idle' })
   const timers = useRef<Record<Fmt, any>>({} as any)
 

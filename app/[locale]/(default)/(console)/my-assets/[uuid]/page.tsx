@@ -2,7 +2,7 @@ interface Props { params: Promise<{ uuid: string }> }
 
 export const dynamic = 'force-dynamic'
 import RenditionsPanel from '@/components/assets/RenditionsPanel'
-import AssetAutoPreviewGLB from '@/components/assets/AssetAutoPreviewGLB'
+import AssetAutoPreviewOBJ from '@/components/assets/AssetAutoPreviewOBJ'
 
 export default async function AssetDetailPage({ params }: Props) {
   const { uuid } = await params
@@ -12,8 +12,8 @@ export default async function AssetDetailPage({ params }: Props) {
       <p className="text-muted-foreground mb-4">资产 ID：{uuid}</p>
 
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">GLB 预览</h2>
-        <AssetAutoPreviewGLB assetUuid={uuid} />
+        <h2 className="text-lg font-semibold mb-2">OBJ 预览</h2>
+        <AssetAutoPreviewOBJ assetUuid={uuid} />
       </div>
 
       <h2 className="text-lg font-semibold mb-2">格式生成与下载</h2>
