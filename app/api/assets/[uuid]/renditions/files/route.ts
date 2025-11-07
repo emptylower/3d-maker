@@ -54,7 +54,10 @@ export async function GET(req: Request, ctx: any) {
     for (const key of keys.filter(k => /\/obj\/[^/]+\.(obj|mtl|png|jpe?g|webp)$/i.test(k))) {
       const rawName = key.substring(prefix.length)
       const cleanName = dropQueryAndHash(rawName)
-      const disp = `attachment; filename=${encodeURIComponent(cleanName)}`
+      const lower = cleanName.toLowerCase()
+      // For preview subresources, prefer inline to avoid browsers treating as download
+      const inline = (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('.obj') || lower.endsWith('.mtl'))
+      const disp = inline ? `inline; filename=${encodeURIComponent(cleanName)}` : `attachment; filename=${encodeURIComponent(cleanName)}`
       const { url } = await storage.getSignedUrl({ key, responseDisposition: disp })
       files.push({ name: cleanName, url })
     }
