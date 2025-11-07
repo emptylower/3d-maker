@@ -130,7 +130,14 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         })
 
         // Normalize scale and center
-        root.traverse((c: any) => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true } })
+        root.traverse((c: any) => {
+          if (c.isMesh) {
+            c.castShadow = true; c.receiveShadow = true
+            if (!c.material) {
+              c.material = new (THREE as any).MeshStandardMaterial({ color: 0xdddddd })
+            }
+          }
+        })
         const box = new THREE.Box3().setFromObject(root)
         const size = new THREE.Vector3(); box.getSize(size)
         const center = new THREE.Vector3(); box.getCenter(center)
@@ -157,6 +164,8 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           renderer.setSize(w, heightPx)
         }
         window.addEventListener('resize', onResize)
+        // Render at least once in case RAF is throttled
+        renderer.render(scene, camera)
       } catch (e: any) {
         console.error('ViewerOBJ error:', e)
         if (!disposed) setError(e?.message || 'failed to preview OBJ')
