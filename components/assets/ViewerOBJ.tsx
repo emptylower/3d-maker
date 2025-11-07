@@ -47,6 +47,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
   useEffect(() => {
     let disposed = false
     let renderer: any, scene: any, camera: any, controls: any, animationId: number | null = null
+    let added = false
 
     const run = async () => {
       try {
@@ -68,6 +69,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           map.set(n.toLowerCase(), f.url)
           map.set(b.toLowerCase(), f.url)
         }
+        console.log('[OBJ] files:', files.map(f => f.name))
 
         // pick obj & mtl
         const objs = files.filter(f => /\.obj$/i.test(f.name))
@@ -75,6 +77,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         const obj = prefer(objs, f => /(^|\/)file\.obj$/i.test(f.name) || /(^|\/)0\.obj$/i.test(f.name))
         const mtl = prefer(mtls, f => /(^|\/)file\.mtl$/i.test(f.name) || /(^|\/)0\.mtl$/i.test(f.name))
         if (!obj) throw new Error('OBJ 文件缺失')
+        console.log('[OBJ] chosen:', { obj: obj.name, mtl: mtl?.name })
 
         // Scene
         scene = new THREE.Scene()
@@ -122,28 +125,53 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           } catch {}
           // fallback
           const bn = basename(url)
-          return map.get(bn) || map.get(bn.toLowerCase()) || url
+          const out = map.get(bn) || map.get(bn.toLowerCase()) || url
+          return out
         })
 
-        // Load materials (optional)
-        let materials: any = null
-        if (mtl) {
-          const mtlLoader = new MTLLoader(manager)
-          mtlLoader.setMaterialOptions({ ignoreZeroRGBs: true })
-          await new Promise<void>((resolve, reject) => {
-            mtlLoader.load(mtl.url, (mat: any) => {
-              try { mat.preload() } catch {}
-              materials = mat
-              resolve()
-            }, undefined, () => resolve()) // resolve even if mtl missing
-          })
-        }
-
+        // Two-path load: try with MTL, but fallback to OBJ-only if it stalls > 2s
         const objLoader = new OBJLoader(manager)
-        if (materials) objLoader.setMaterials(materials)
-        const root: any = await new Promise((resolve, reject) => {
-          objLoader.load(obj.url, (g: any) => resolve(g), undefined, (e: any) => reject(e))
-        })
+        const loadWithMtl = async () => {
+          let materials: any = null
+          if (mtl) {
+            console.log('[OBJ] loading MTL:', mtl.url)
+            const mtlLoader = new MTLLoader(manager)
+            mtlLoader.setMaterialOptions({ ignoreZeroRGBs: true })
+            await new Promise<void>((resolve) => {
+              mtlLoader.load(mtl.url, (mat: any) => {
+                try { mat.preload() } catch {}
+                materials = mat
+                resolve()
+              }, undefined, () => resolve()) // resolve even if mtl missing
+            })
+          }
+          if (materials) objLoader.setMaterials(materials)
+          console.log('[OBJ] loading OBJ(with mtl?):', !!materials)
+          const g: any = await new Promise((resolve, reject) => {
+            objLoader.load(obj.url, (gg: any) => resolve(gg), undefined, (e: any) => reject(e))
+          })
+          return g
+        }
+        const loadObjOnly = async () => {
+          console.log('[OBJ] fallback: loading OBJ only')
+          const g: any = await new Promise((resolve, reject) => {
+            objLoader.load(obj.url, (gg: any) => resolve(gg), undefined, (e: any) => reject(e))
+          })
+          return g
+        }
+        const timeout = new Promise((resolve) => setTimeout(() => resolve('TIMEOUT'), 2000))
+        let root: any
+        try {
+          const raced: any = await Promise.race([loadWithMtl(), timeout])
+          if (raced === 'TIMEOUT') {
+            root = await loadObjOnly()
+          } else {
+            root = raced
+          }
+        } catch (e) {
+          console.warn('[OBJ] with MTL failed, retrying OBJ only:', e)
+          root = await loadObjOnly()
+        }
 
         // Normalize scale and center
         root.traverse((c: any) => {
@@ -162,6 +190,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         root.position.sub(center)
         root.scale.setScalar(scale)
         scene.add(root)
+        added = true
 
         // Animate
         const tick = () => {

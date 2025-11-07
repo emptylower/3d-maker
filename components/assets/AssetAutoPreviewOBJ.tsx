@@ -16,7 +16,7 @@ export default function AssetAutoPreviewOBJ({ assetUuid }: { assetUuid: string }
         setLoading(true)
         setErr(null)
         // Hitting the files endpoint materializes OBJ/MTL/textures if missing
-        const res = await fetch(`/api/assets/${assetUuid}/renditions/files?format=obj`)
+        const res = await fetch(`/api/assets/${assetUuid}/renditions/files?format=obj&debug=1`)
         if (!res.ok) throw new Error(`服务器暂不可用（${res.status}）`)
         const js = await res.json().catch(() => null)
         const list: FileItem[] = js?.data?.files || []
@@ -37,4 +37,3 @@ export default function AssetAutoPreviewOBJ({ assetUuid }: { assetUuid: string }
   if (!files) return null
   return <ViewerOBJ files={files} />
 }
-
