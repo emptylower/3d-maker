@@ -73,20 +73,21 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         scene = new THREE.Scene()
         scene.background = new THREE.Color(0xf7f7f7)
         camera = new THREE.PerspectiveCamera(45, width / heightPx, 0.1, 1000)
-        camera.position.set(0.6, 0.6, 1.2)
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
         renderer.setSize(width, heightPx)
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+        try { (renderer as any).outputColorSpace = (THREE as any).SRGBColorSpace } catch {}
         el.innerHTML = ''
         el.appendChild(renderer.domElement)
 
         // Lights
-        const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.9)
+        const hemi = new THREE.HemisphereLight(0xffffff, 0x999999, 0.95)
         hemi.position.set(0, 1, 0)
         scene.add(hemi)
-        const dir = new THREE.DirectionalLight(0xffffff, 0.8)
-        dir.position.set(3, 10, 10)
+        const dir = new THREE.DirectionalLight(0xffffff, 0.85)
+        dir.position.set(5, 10, 7)
+        dir.castShadow = false
         scene.add(dir)
 
         // Grid/ground (soft)
@@ -97,13 +98,13 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         // Controls
         controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
-        controls.target.set(0, 0.4, 0)
+        controls.target.set(0, 0, 0)
 
         // URL modifier: map requested to signed ones
         const manager = new THREE.LoadingManager()
         manager.onStart = (url: string, loaded: number, total: number) => { setStatus(`加载开始 (${loaded}/${total})`) }
         manager.onProgress = (url: string, loaded: number, total: number) => { setStatus(`加载中 ${loaded}/${total}`) }
-        manager.onLoad = () => { setStatus('解析中…') }
+        manager.onLoad = () => { if (!added) setStatus('解析中…') }
         manager.setURLModifier((url: string) => {
           try {
             const u = new URL(url, location.href)
@@ -197,14 +198,32 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           }
         })
         const box = new THREE.Box3().setFromObject(root)
-        const size = new THREE.Vector3(); box.getSize(size)
         const center = new THREE.Vector3(); box.getCenter(center)
+        const size = new THREE.Vector3(); box.getSize(size)
         const maxDim = Math.max(size.x, size.y, size.z) || 1
         const scale = 1.0 / maxDim
+        // Move model to origin and uniform scale
         root.position.sub(center)
         root.scale.setScalar(scale)
         scene.add(root)
+
+        // Frame camera to fit whole model
+        const sphere = new THREE.Sphere()
+        box.getBoundingSphere(sphere)
+        const radius = Math.max(sphere.radius * scale, 0.5)
+        const fov = (camera.fov * Math.PI) / 180
+        const dist = radius / Math.sin(fov / 2) * 1.2
+        camera.near = Math.max(dist / 100, 0.01)
+        camera.far = Math.max(dist * 10, 100)
+        camera.position.set(0, radius * 0.6, dist)
+        camera.lookAt(0, 0, 0)
+        camera.updateProjectionMatrix()
+        controls.target.set(0, 0, 0)
+        controls.update()
         added = true
+        // prevent late onLoad from overriding status
+        manager.onLoad = () => {}
+        setStatus(`就绪：尺寸 ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`)
         try {
           const box2 = new THREE.Box3().setFromObject(root)
           const size2 = new THREE.Vector3(); box2.getSize(size2)
