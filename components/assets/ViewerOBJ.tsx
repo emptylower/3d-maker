@@ -43,6 +43,7 @@ function basename(n: string) {
 export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; height?: number }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<string>('初始化…')
 
   useEffect(() => {
     let disposed = false
@@ -70,6 +71,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           map.set(b.toLowerCase(), f.url)
         }
         console.log('[OBJ] files:', files.map(f => f.name))
+        setStatus('已获取文件清单')
 
         // pick obj & mtl
         const objs = files.filter(f => /\.obj$/i.test(f.name))
@@ -78,6 +80,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         const mtl = prefer(mtls, f => /(^|\/)file\.mtl$/i.test(f.name) || /(^|\/)0\.mtl$/i.test(f.name))
         if (!obj) throw new Error('OBJ 文件缺失')
         console.log('[OBJ] chosen:', { obj: obj.name, mtl: mtl?.name })
+        setStatus(`准备加载：${obj.name}${mtl ? ' + ' + mtl.name : ''}`)
 
         // Scene
         scene = new THREE.Scene()
@@ -111,6 +114,9 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
 
         // URL modifier: map requested to signed ones
         const manager = new THREE.LoadingManager()
+        manager.onStart = (url: string, loaded: number, total: number) => { setStatus(`加载开始 (${loaded}/${total})`) }
+        manager.onProgress = (url: string, loaded: number, total: number) => { setStatus(`加载中 ${loaded}/${total}`) }
+        manager.onLoad = () => { setStatus('解析中…') }
         manager.setURLModifier((url: string) => {
           try {
             const u = new URL(url, location.href)
@@ -137,25 +143,46 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
             console.log('[OBJ] loading MTL:', mtl.url)
             const mtlLoader = new MTLLoader(manager)
             mtlLoader.setMaterialOptions({ ignoreZeroRGBs: true })
+            try {
+              const base = new URL(mtl.url)
+              base.pathname = base.pathname.replace(/[^/]+$/, '')
+              mtlLoader.setResourcePath(base.toString())
+              mtlLoader.setPath(base.toString())
+            } catch {}
             await new Promise<void>((resolve) => {
               mtlLoader.load(mtl.url, (mat: any) => {
                 try { mat.preload() } catch {}
                 materials = mat
                 resolve()
-              }, undefined, () => resolve()) // resolve even if mtl missing
+              }, (ev) => {
+                if (ev && typeof (ev as any).loaded === 'number' && typeof (ev as any).total === 'number') {
+                  const p = Math.round((ev as any).loaded * 100 / Math.max(1, (ev as any).total))
+                  setStatus(`加载材质 ${p}%`)
+                }
+              }, () => resolve()) // resolve even if mtl missing
             })
           }
           if (materials) objLoader.setMaterials(materials)
           console.log('[OBJ] loading OBJ(with mtl?):', !!materials)
           const g: any = await new Promise((resolve, reject) => {
-            objLoader.load(obj.url, (gg: any) => resolve(gg), undefined, (e: any) => reject(e))
+            objLoader.load(obj.url, (gg: any) => resolve(gg), (ev) => {
+              if (ev && typeof (ev as any).loaded === 'number' && typeof (ev as any).total === 'number') {
+                const p = Math.round((ev as any).loaded * 100 / Math.max(1, (ev as any).total))
+                setStatus(`加载模型 ${p}%`)
+              }
+            }, (e: any) => reject(e))
           })
           return g
         }
         const loadObjOnly = async () => {
           console.log('[OBJ] fallback: loading OBJ only')
           const g: any = await new Promise((resolve, reject) => {
-            objLoader.load(obj.url, (gg: any) => resolve(gg), undefined, (e: any) => reject(e))
+            objLoader.load(obj.url, (gg: any) => resolve(gg), (ev) => {
+              if (ev && typeof (ev as any).loaded === 'number' && typeof (ev as any).total === 'number') {
+                const p = Math.round((ev as any).loaded * 100 / Math.max(1, (ev as any).total))
+                setStatus(`加载模型 ${p}%`)
+              }
+            }, (e: any) => reject(e))
           })
           return g
         }
@@ -191,6 +218,11 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         root.scale.setScalar(scale)
         scene.add(root)
         added = true
+        try {
+          const box2 = new THREE.Box3().setFromObject(root)
+          const size2 = new THREE.Vector3(); box2.getSize(size2)
+          setStatus(`就绪：尺寸 ${size2.x.toFixed(2)} × ${size2.y.toFixed(2)} × ${size2.z.toFixed(2)}`)
+        } catch {}
 
         // Animate
         const tick = () => {
@@ -229,6 +261,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
   return (
     <div>
       <div ref={containerRef} style={{ width: '100%', height, borderRadius: 8, overflow: 'hidden', background: '#f7f7f7' }} />
+      <div className="text-xs text-muted-foreground mt-1">{status}</div>
       {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
     </div>
   )
