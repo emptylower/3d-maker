@@ -206,6 +206,35 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         root.position.sub(center)
         root.scale.setScalar(scale)
         scene.add(root)
+        // Fallback: if no texture map was applied via MTL, apply the first image to all meshes
+        let hasTextureMap = false
+        root.traverse((c: any) => {
+          if (c.isMesh) {
+            const mats = Array.isArray(c.material) ? c.material : [c.material]
+            if (mats.some((m: any) => m && m.map)) hasTextureMap = true
+          }
+        })
+        if (!hasTextureMap) {
+          const texFile = files.find(f => /\.(png|jpe?g|webp)$/i.test(f.name))
+          if (texFile) {
+            try {
+              const tLoader = new THREE.TextureLoader()
+              await new Promise<void>((resolve) => {
+                tLoader.load(texFile.url, (tex: any) => {
+                  try {
+                    root.traverse((c: any) => {
+                      if (c.isMesh) {
+                        const mats = Array.isArray(c.material) ? c.material : [c.material]
+                        for (const m of mats) { if (m) { m.map = tex; m.needsUpdate = true } }
+                      }
+                    })
+                  } catch {}
+                  resolve()
+                }, undefined, () => resolve())
+              })
+            } catch {}
+          }
+        }
 
         // Frame camera to fit whole model
         const sphere = new THREE.Sphere()
