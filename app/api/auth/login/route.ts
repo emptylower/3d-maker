@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { signIn } from '@/auth'
+import { signIn, auth } from '@/auth'
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,6 +9,14 @@ export async function POST(req: NextRequest) {
     if (!normEmail || !pwd) {
       return Response.json({ error: 'INVALID_INPUT' }, { status: 400 })
     }
+
+    // If already signed in (e.g., previous flow/One Tap), treat as success
+    try {
+      const sess = await auth()
+      if (sess && sess.user) {
+        return Response.json({ ok: true, alreadySignedIn: true }, { status: 200 })
+      }
+    } catch {}
 
     // Delegate to NextAuth credentials provider
     const res: any = await signIn('credentials', {
@@ -40,6 +48,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (success) return out
+
+    // Fallback: after signIn, verify session again (in case environment sets cookie implicitly)
+    try {
+      const sess2 = await auth()
+      if (sess2 && sess2.user) {
+        return Response.json({ ok: true, sessionEstablished: true }, { status: 200 })
+      }
+    } catch {}
 
     return Response.json({ error: 'INVALID_CREDENTIALS' }, { status: 401 })
   } catch (e) {
