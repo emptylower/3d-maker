@@ -7,6 +7,12 @@ import { genSalt, hashPassword, validatePasswordStrength } from '@/lib/password'
 import { signIn } from '@/auth'
 import { cookies } from 'next/headers'
 
+async function getCookieMap() {
+  const store: any = await (cookies() as any)
+  const list = typeof store?.getAll === 'function' ? store.getAll() : []
+  return new Map<string, string>(list.map((c: any) => [c.name, c.value]))
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
@@ -43,7 +49,7 @@ export async function POST(req: NextRequest) {
     const saved = await saveUser(user as any)
 
     // auto login via NextAuth credentials
-    const before = new Map(cookies().getAll().map(c => [c.name, c.value]))
+    const before = await getCookieMap()
 
     const authRes: any = await signIn('credentials', {
       redirect: false,
@@ -66,7 +72,7 @@ export async function POST(req: NextRequest) {
       }
     }
     if (!cookieMutated) {
-      const after = new Map(cookies().getAll().map(c => [c.name, c.value]))
+      const after = await getCookieMap()
       const sessionCookieNames = [
         'authjs.session-token',
         '__Secure-authjs.session-token',

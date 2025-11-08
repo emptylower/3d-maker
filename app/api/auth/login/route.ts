@@ -2,6 +2,12 @@ import { NextRequest } from 'next/server'
 import { signIn, auth } from '@/auth'
 import { cookies } from 'next/headers'
 
+async function getCookieMap() {
+  const store: any = await (cookies() as any)
+  const list = typeof store?.getAll === 'function' ? store.getAll() : []
+  return new Map<string, string>(list.map((c: any) => [c.name, c.value]))
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
@@ -20,7 +26,7 @@ export async function POST(req: NextRequest) {
     } catch {}
 
     // Snapshot cookies before sign-in
-    const before = new Map(cookies().getAll().map(c => [c.name, c.value]))
+    const before = await getCookieMap()
 
     // Delegate to NextAuth credentials provider
     const res: any = await signIn('credentials', {
@@ -53,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     // Detect session cookie mutation as success (Auth.js may set cookies() implicitly)
     if (!success) {
-      const after = new Map(cookies().getAll().map(c => [c.name, c.value]))
+      const after = await getCookieMap()
       const sessionCookieNames = [
         'authjs.session-token',
         '__Secure-authjs.session-token',

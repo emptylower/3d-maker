@@ -2,6 +2,12 @@ import { NextRequest } from 'next/server'
 import { signIn } from '@/auth'
 import { cookies } from 'next/headers'
 
+async function getCookieMap() {
+  const store: any = await (cookies() as any)
+  const list = typeof store?.getAll === 'function' ? store.getAll() : []
+  return new Map<string, string>(list.map((c: any) => [c.name, c.value]))
+}
+
 function maskEmail(e: string) {
   const [name, domain] = (e || '').split('@')
   if (!domain) return '***'
@@ -24,7 +30,7 @@ export async function POST(req: NextRequest) {
       treatedSuccess: false,
     }
 
-    const before = new Map(cookies().getAll().map(c => [c.name, c.value]))
+    const before = await getCookieMap()
 
     const res: any = await signIn('credentials', {
       redirect: false,
@@ -65,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Cookie diff (implicit set by Auth.js)
-    const after = new Map(cookies().getAll().map(c => [c.name, c.value]))
+    const after = await getCookieMap()
     const sessionCookieNames = [
       'authjs.session-token',
       '__Secure-authjs.session-token',
