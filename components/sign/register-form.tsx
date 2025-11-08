@@ -11,7 +11,15 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-export default function RegisterForm() {
+export default function RegisterForm({
+  hideSigninLink = false,
+  onSwitchToLogin,
+  onSuccess,
+}: {
+  hideSigninLink?: boolean;
+  onSwitchToLogin?: () => void;
+  onSuccess?: () => void;
+} = {}) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -42,8 +50,13 @@ export default function RegisterForm() {
       if (!resp.ok) {
         throw new Error("注册失败")
       }
-      // auto signed-in (server forwards cookie). Go home.
-      window.location.href = "/"
+      // auto signed-in (server forwards cookie).
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        // fallback: reload home
+        window.location.href = "/"
+      }
     } catch (e) {
       setError("注册失败，请稍后再试")
     } finally {
@@ -63,10 +76,18 @@ export default function RegisterForm() {
       </div>
       {error && <div role="alert" className="text-sm text-red-500">{error}</div>}
       <Button type="submit" disabled={loading}>{loading ? '注册中…' : '注册'}</Button>
-      <div className="text-sm text-center text-muted-foreground">
-        已有账号？
-        <Link href="/auth/signin" className="underline underline-offset-4">去登录</Link>
-      </div>
+      {!hideSigninLink && (
+        <div className="text-sm text-center text-muted-foreground">
+          已有账号？
+          <Link href="/auth/signin" className="underline underline-offset-4">去登录</Link>
+        </div>
+      )}
+      {hideSigninLink && onSwitchToLogin && (
+        <div className="text-sm text-center text-muted-foreground">
+          已有账号？
+          <button type="button" className="underline underline-offset-4" onClick={onSwitchToLogin}>去登录</button>
+        </div>
+      )}
     </form>
   )
 }

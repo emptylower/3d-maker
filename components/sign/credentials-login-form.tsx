@@ -12,7 +12,13 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-export default function CredentialsLoginForm() {
+export default function CredentialsLoginForm({
+  hideRegisterLink = false,
+  onSwitchToRegister,
+}: {
+  hideRegisterLink?: boolean;
+  onSwitchToRegister?: () => void;
+} = {}) {
   const { setShowSignModal } = useAppContext();
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -61,12 +67,30 @@ export default function CredentialsLoginForm() {
       </div>
       {error && <div role="alert" className="text-sm text-red-500">{error}</div>}
       <Button type="submit" disabled={loading}>{loading ? '登录中…' : '登录'}</Button>
-      <div className="text-sm text-center text-muted-foreground">
-        还没有账号？
-        <Link href="/auth/register" className="underline underline-offset-4" onClick={() => setShowSignModal(false)}>
-          去注册
-        </Link>
-      </div>
+      {!hideRegisterLink && (
+        <div className="text-sm text-center text-muted-foreground">
+          还没有账号？
+          <Link
+            href="/auth/register"
+            className="underline underline-offset-4"
+            onClick={() => setShowSignModal(false)}
+          >
+            去注册
+          </Link>
+        </div>
+      )}
+      {hideRegisterLink && onSwitchToRegister && (
+        <div className="text-sm text-center text-muted-foreground">
+          还没有账号？
+          <button
+            type="button"
+            className="underline underline-offset-4"
+            onClick={onSwitchToRegister}
+          >
+            去注册
+          </button>
+        </div>
+      )}
     </form>
   )
 }

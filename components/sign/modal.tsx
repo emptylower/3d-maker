@@ -24,6 +24,7 @@ import { SiGithub, SiGmail, SiGoogle } from "react-icons/si";
 
 import { Button } from "@/components/ui/button";
 import CredentialsLoginForm from "@/components/sign/credentials-login-form";
+import RegisterForm from "@/components/sign/register-form";
 import { cn } from "@/lib/utils";
 import { signIn } from "next-auth/react";
 import { useAppContext } from "@/contexts/app";
@@ -36,6 +37,7 @@ export default function SignModal() {
 
   const [open, setOpen] = React.useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [mode, setMode] = React.useState<'login' | 'register'>("login");
 
   if (isDesktop) {
     return (
@@ -47,7 +49,7 @@ export default function SignModal() {
               {t("sign_modal.sign_in_description")}
             </DialogDescription>
           </DialogHeader>
-          <ProfileForm />
+          <ProfileForm mode={mode} setMode={setMode} onClose={() => setShowSignModal(false)} />
         </DialogContent>
       </Dialog>
     );
@@ -62,7 +64,7 @@ export default function SignModal() {
             {t("sign_modal.sign_in_description")}
           </DrawerDescription>
         </DrawerHeader>
-        <ProfileForm className="px-4" />
+        <ProfileForm className="px-4" mode={mode} setMode={setMode} onClose={() => setShowSignModal(false)} />
         <DrawerFooter className="pt-4">
           <DrawerClose asChild>
             <Button variant="outline">{t("sign_modal.cancel_title")}</Button>
@@ -73,7 +75,7 @@ export default function SignModal() {
   );
 }
 
-function ProfileForm({ className }: React.ComponentProps<"form">) {
+function ProfileForm({ className, mode, setMode, onClose }: React.ComponentProps<"form"> & { mode: 'login'|'register', setMode: (m:'login'|'register')=>void, onClose: () => void }) {
   const t = useTranslations();
 
   return (
@@ -120,13 +122,17 @@ function ProfileForm({ className }: React.ComponentProps<"form">) {
       {/* Divider */}
       <div className="relative text-center text-xs text-muted-foreground my-1 after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
         <span className="relative z-10 bg-background px-2">
-          {t("sign_modal.or")} {t("sign_modal.email_sign_in")}
+          {mode === 'login' ? `${t("sign_modal.or")} ${t("sign_modal.email_sign_in")}` : `${t("sign_modal.or")} ${t("sign_modal.sign_up_title")}`}
         </span>
       </div>
 
-      {/* Credentials (email + password) login */}
+      {/* Credentials login / Register (embedded) */}
       <div className="border rounded-md p-3 bg-background w-full">
-        <CredentialsLoginForm />
+        {mode === 'login' ? (
+          <CredentialsLoginForm hideRegisterLink onSwitchToRegister={() => setMode('register')} />
+        ) : (
+          <RegisterForm hideSigninLink onSwitchToLogin={() => setMode('login')} onSuccess={() => { onClose(); try { window.location.reload(); } catch {} }} />
+        )}
       </div>
     </div>
   );
