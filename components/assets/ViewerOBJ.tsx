@@ -27,12 +27,30 @@ function basename(n: string) {
   return segs[segs.length - 1]
 }
 
-export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; height?: number }) {
+export default function ViewerOBJ({ files, height = 360, debug = false }: { files: FileItem[]; height?: number; debug?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('初始化…')
-  const [progress, setProgress] = useState<number>(0)
+  const [uiProgress, setUiProgress] = useState<number>(0)
   const [showModel, setShowModel] = useState<boolean>(false)
+  const targetRef = useRef<number>(0)
+
+  // Smooth progress animation toward targetRef
+  useEffect(() => {
+    let raf = 0
+    const tick = () => {
+      setUiProgress((prev) => {
+        const target = targetRef.current
+        if (prev >= target) return prev
+        const step = Math.max(0.5, (target - prev) * 0.15)
+        const next = Math.min(target, prev + step)
+        return next
+      })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
 
   useEffect(() => {
     let disposed = false
@@ -42,7 +60,8 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
     const run = async () => {
       try {
         setShowModel(false)
-        setProgress(0)
+        targetRef.current = 0
+        setUiProgress(0)
         const { THREE, MTLLoader, OBJLoader, OrbitControls } = await loadThreeModules()
 
         if (disposed) return
@@ -107,15 +126,18 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         // URL modifier: map requested to signed ones
         const manager = new THREE.LoadingManager()
         manager.onStart = (_url: string, loaded: number, total: number) => {
-          setStatus(`加载开始 (${loaded}/${total})`)
-          if (total > 0) setProgress(Math.min(99, Math.round((loaded / total) * 100)))
+          if (debug) setStatus(`加载开始 (${loaded}/${total})`)
+          if (total > 0) targetRef.current = Math.max(targetRef.current, Math.min(90, Math.round((loaded / Math.max(1, total)) * 90)))
+          else targetRef.current = Math.max(targetRef.current, 10)
         }
         manager.onProgress = (_url: string, loaded: number, total: number) => {
-          setStatus(`加载中 ${loaded}/${total}`)
-          if (total > 0) setProgress((prev) => Math.max(prev, Math.min(99, Math.round((loaded / total) * 100))))
+          if (debug) setStatus(`加载中 ${loaded}/${total}`)
+          if (total > 0) targetRef.current = Math.max(targetRef.current, Math.min(95, Math.round((loaded / Math.max(1, total)) * 95)))
         }
         manager.onLoad = () => {
-          if (!added) { setStatus('解析中…') }
+          if (!added && debug) { setStatus('解析中…') }
+          // bump to 98 while we fit the scene
+          targetRef.current = Math.max(targetRef.current, 98)
         }
         manager.setURLModifier((url: string) => {
           try {
@@ -166,10 +188,10 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           console.log('[OBJ] loading OBJ(with mtl?):', !!materials)
           const g: any = await new Promise((resolve, reject) => {
             objLoader.load(obj.url, (gg: any) => resolve(gg), (ev: any) => {
-              if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number') {
-                const p = Math.round((ev.loaded * 100) / Math.max(1, ev.total))
-                setStatus(`加载模型 ${p}%`)
-                setProgress((prev) => Math.max(prev, Math.min(99, p)))
+              if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number' && ev.total > 0) {
+                const p = Math.round((ev.loaded * 100) / ev.total)
+                if (debug) setStatus(`加载模型 ${p}%`)
+                targetRef.current = Math.max(targetRef.current, Math.min(95, p))
               }
             }, (e: any) => reject(e))
           })
@@ -179,10 +201,10 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           console.log('[OBJ] fallback: loading OBJ only')
           const g: any = await new Promise((resolve, reject) => {
             objLoader.load(obj.url, (gg: any) => resolve(gg), (ev: any) => {
-              if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number') {
-                const p = Math.round((ev.loaded * 100) / Math.max(1, ev.total))
-                setStatus(`加载模型 ${p}%`)
-                setProgress((prev) => Math.max(prev, Math.min(99, p)))
+              if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number' && ev.total > 0) {
+                const p = Math.round((ev.loaded * 100) / ev.total)
+                if (debug) setStatus(`加载模型 ${p}%`)
+                targetRef.current = Math.max(targetRef.current, Math.min(95, p))
               }
             }, (e: any) => reject(e))
           })
@@ -292,9 +314,9 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         window.addEventListener('resize', onResize)
         // Render at least once in case RAF is throttled
         renderer.render(scene, camera)
-        // Mark as ready (no more network loads expected)
-        setProgress(100)
-        setShowModel(true)
+        // Mark as ready and reveal smoothly
+        targetRef.current = 100
+        setTimeout(() => setShowModel(true), 150)
       } catch (e: any) {
         console.error('ViewerOBJ error:', e)
         if (!disposed) setError(e?.message || 'failed to preview OBJ')
@@ -315,24 +337,22 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
       <div ref={containerRef} style={{ width: '100%', height, borderRadius: 8, overflow: 'hidden', background: '#f7f7f7', position: 'relative' }} />
       {!showModel && (
         <div style={{
-          position: 'relative',
-          marginTop: -height + 0,
-          height,
+          position: 'absolute',
+          inset: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'rgba(247,247,247,0.9)',
-          borderRadius: 8,
+          background: 'rgba(247,247,247,0.92)'
         }}>
           <div style={{ width: '66%', maxWidth: 420 }}>
             <div style={{ height: 8, background: '#e5e7eb', borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ width: `${progress}%`, height: '100%', background: '#111827', transition: 'width 180ms ease' }} />
+              <div style={{ width: `${Math.round(uiProgress)}%`, height: '100%', background: '#111827', transition: 'width 240ms ease' }} />
             </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>{status}（{progress}%）</div>
+            {debug && <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>{status}（{Math.round(uiProgress)}%）</div>}
           </div>
         </div>
       )}
-      <div className="text-xs text-muted-foreground mt-1">{status}</div>
+      {debug && <div className="text-xs text-muted-foreground mt-1">{status}</div>}
       {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
     </div>
   )
