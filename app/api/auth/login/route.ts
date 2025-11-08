@@ -17,20 +17,29 @@ export async function POST(req: NextRequest) {
       password: pwd,
     })
 
-    // If NextAuth returned a Response with cookies, forward them
-    if (res instanceof Response && res.ok) {
-      const out = Response.json({ ok: true }, { status: 200 })
-      // Node/undici provides getSetCookie in newer versions
+    // Normalize success across different NextAuth responses
+    let success = false
+    const out = Response.json({ ok: true }, { status: 200 })
+    if (res instanceof Response) {
+      // Forward Set-Cookie if present
       // @ts-ignore
       const cookies = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : res.headers.get('set-cookie')
-      if (Array.isArray(cookies)) {
+      if (Array.isArray(cookies) && cookies.length > 0) {
         for (const c of cookies) out.headers.append('set-cookie', c)
+        success = true
       } else if (cookies) {
         out.headers.set('set-cookie', cookies as string)
+        success = true
       }
-      return out
+      // Some adapters may return 302 (redirect) even when redirect:false; treat 2xx/3xx as success
+      if (res.ok || (res.status >= 300 && res.status < 400)) {
+        success = true
+      }
+    } else if (res && typeof res.ok === 'boolean') {
+      success = !!res.ok
     }
-    if (res && res.ok) return Response.json({ ok: true }, { status: 200 })
+
+    if (success) return out
 
     return Response.json({ error: 'INVALID_CREDENTIALS' }, { status: 401 })
   } catch (e) {

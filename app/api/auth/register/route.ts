@@ -49,11 +49,11 @@ export async function POST(req: NextRequest) {
     })
 
     const out = Response.json({ user_uuid: saved.uuid }, { status: 201 })
-    if (authRes instanceof Response && authRes.ok) {
-      // forward Set-Cookie from NextAuth response
+    if (authRes instanceof Response) {
+      // forward Set-Cookie from NextAuth response when present
       // @ts-ignore
       const cookies = typeof authRes.headers.getSetCookie === 'function' ? authRes.headers.getSetCookie() : authRes.headers.get('set-cookie')
-      if (Array.isArray(cookies)) {
+      if (Array.isArray(cookies) && cookies.length > 0) {
         for (const c of cookies) out.headers.append('set-cookie', c)
       } else if (cookies) {
         out.headers.set('set-cookie', cookies as string)
