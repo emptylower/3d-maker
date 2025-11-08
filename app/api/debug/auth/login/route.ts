@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { signIn } from '@/auth'
+import { cookies } from 'next/headers'
 
 function maskEmail(e: string) {
   const [name, domain] = (e || '').split('@')
@@ -22,6 +23,8 @@ export async function POST(req: NextRequest) {
       forwarded: { setCookieCount: 0 },
       treatedSuccess: false,
     }
+
+    const before = new Map(cookies().getAll().map(c => [c.name, c.value]))
 
     const res: any = await signIn('credentials', {
       redirect: false,
@@ -61,6 +64,26 @@ export async function POST(req: NextRequest) {
       debug.treatedSuccess = false
     }
 
+    // Cookie diff (implicit set by Auth.js)
+    const after = new Map(cookies().getAll().map(c => [c.name, c.value]))
+    const sessionCookieNames = [
+      'authjs.session-token',
+      '__Secure-authjs.session-token',
+      'next-auth.session-token',
+      '__Secure-next-auth.session-token',
+    ]
+    debug.cookie = {
+      before: Array.from(before.keys()).filter(k => sessionCookieNames.includes(k)),
+      after: Array.from(after.keys()).filter(k => sessionCookieNames.includes(k)),
+      changed: false,
+    }
+    for (const name of sessionCookieNames) {
+      const b = before.get(name)
+      const a = after.get(name)
+      if (a && a !== b) debug.cookie.changed = true
+    }
+    if (!debug.treatedSuccess && debug.cookie.changed) debug.treatedSuccess = true
+
     if (debug.treatedSuccess) return out
 
     return Response.json({ ok: false, debug, error: 'INVALID_CREDENTIALS_TREATED' }, { status: 401 })
@@ -68,4 +91,3 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'INTERNAL_ERROR', message: e?.message }, { status: 500 })
   }
 }
-

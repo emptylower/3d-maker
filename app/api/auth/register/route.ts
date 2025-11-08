@@ -5,6 +5,7 @@ import { getIsoTimestr } from '@/lib/time'
 import { getUuid } from '@/lib/hash'
 import { genSalt, hashPassword, validatePasswordStrength } from '@/lib/password'
 import { signIn } from '@/auth'
+import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +43,8 @@ export async function POST(req: NextRequest) {
     const saved = await saveUser(user as any)
 
     // auto login via NextAuth credentials
+    const before = new Map(cookies().getAll().map(c => [c.name, c.value]))
+
     const authRes: any = await signIn('credentials', {
       redirect: false,
       email: normEmail,
@@ -49,14 +52,34 @@ export async function POST(req: NextRequest) {
     })
 
     const out = Response.json({ user_uuid: saved.uuid }, { status: 201 })
+    let cookieMutated = false
     if (authRes instanceof Response) {
       // forward Set-Cookie from NextAuth response when present
       // @ts-ignore
       const cookies = typeof authRes.headers.getSetCookie === 'function' ? authRes.headers.getSetCookie() : authRes.headers.get('set-cookie')
       if (Array.isArray(cookies) && cookies.length > 0) {
         for (const c of cookies) out.headers.append('set-cookie', c)
+        cookieMutated = true
       } else if (cookies) {
         out.headers.set('set-cookie', cookies as string)
+        cookieMutated = true
+      }
+    }
+    if (!cookieMutated) {
+      const after = new Map(cookies().getAll().map(c => [c.name, c.value]))
+      const sessionCookieNames = [
+        'authjs.session-token',
+        '__Secure-authjs.session-token',
+        'next-auth.session-token',
+        '__Secure-next-auth.session-token',
+      ]
+      for (const name of sessionCookieNames) {
+        const b = before.get(name)
+        const a = after.get(name)
+        if (a && a !== b) {
+          // rely on implicit cookie store mutation by Auth.js; nothing to append
+          break
+        }
       }
     }
     return out
