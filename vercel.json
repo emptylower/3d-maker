@@ -1,13 +1,5 @@
 {
-  "functions": {
-    "app/api/**/*": {
-      "maxDuration": 60
-    }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/hitem3d-auto-finalize",
-      "schedule": "*/10 * * * *"
-    }
-  ]
+  "installCommand": "pnpm install --no-frozen-lockfile",
+  "buildCommand": "pnpm run build"
 }
+

@@ -3,65 +3,13 @@ import React, { useEffect, useRef, useState } from 'react'
 
 type FileItem = { name: string; url: string }
 
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = src
-    s.async = true
-    s.crossOrigin = 'anonymous'
-    s.onload = () => resolve()
-    s.onerror = () => reject(new Error(`failed to load ${src}`))
-    document.head.appendChild(s)
-  })
-}
-
-async function loadThreeViaESM(): Promise<any> {
-  const w = window as any
-  if (w.__ThreeMods && w.__ThreeMods.THREE && w.__ThreeMods.OBJLoader) return w.__ThreeMods
-  const code = `
-    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-    import { MTLLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/MTLLoader.js';
-    import { OBJLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/OBJLoader.js';
-    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-    window.__ThreeMods = { THREE, MTLLoader, OBJLoader, OrbitControls };
-  `
-  await new Promise<void>((resolve, reject) => {
-    const s = document.createElement('script')
-    s.type = 'module'
-    s.textContent = code
-    s.onload = () => resolve()
-    s.onerror = () => reject(new Error('failed to load three modules (ESM)'))
-    document.head.appendChild(s)
-  })
-  return w.__ThreeMods
-}
-
-async function loadThreeViaLegacy(): Promise<any> {
-  const w = window as any
-  // legacy UMD globals
-  if (!w.THREE) await loadScript('https://unpkg.com/three@0.160.0/build/three.min.js')
-  if (!(w.THREE && w.THREE.MTLLoader)) await loadScript('https://unpkg.com/three@0.160.0/examples/js/loaders/MTLLoader.js')
-  if (!(w.THREE && w.THREE.OBJLoader)) await loadScript('https://unpkg.com/three@0.160.0/examples/js/loaders/OBJLoader.js')
-  if (!(w.THREE && w.THREE.OrbitControls)) await loadScript('https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js')
-  return { THREE: w.THREE, MTLLoader: w.THREE.MTLLoader, OBJLoader: w.THREE.OBJLoader, OrbitControls: w.THREE.OrbitControls }
-}
-
-async function loadThreeModules(setStatus?: (s: string) => void): Promise<any> {
-  try {
-    setStatus && setStatus('加载 three 模块…')
-    const esm = await Promise.race([
-      loadThreeViaESM(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('esm_timeout')), 1500)),
-    ])
-    setStatus && setStatus('three 模块就绪')
-    return esm
-  } catch (e) {
-    // fallback to legacy UMD
-    setStatus && setStatus('兼容模式加载 three…')
-    const legacy = await loadThreeViaLegacy()
-    setStatus && setStatus('three 模块就绪（兼容）')
-    return legacy
-  }
+async function loadThreeModules(): Promise<any> {
+  // Bundle via npm to avoid CDN/CSP issues
+  const THREE = await import('three')
+  const { MTLLoader } = await import('three/examples/jsm/loaders/MTLLoader.js')
+  const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js')
+  const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js')
+  return { THREE, MTLLoader, OBJLoader, OrbitControls }
 }
 
 function prefer<T>(arr: T[], pick: (x: T) => boolean): T | null {
@@ -91,7 +39,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
 
     const run = async () => {
       try {
-        const { THREE, MTLLoader, OBJLoader, OrbitControls } = await loadThreeModules(setStatus)
+        const { THREE, MTLLoader, OBJLoader, OrbitControls } = await loadThreeModules()
 
         if (disposed) return
 
