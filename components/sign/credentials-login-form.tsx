@@ -46,8 +46,8 @@ export default function CredentialsLoginForm({
       if (!resp.ok) {
         throw new Error("登录失败")
       }
-      // redirect to home
-      window.location.href = "/"
+      // refresh current page to reflect session state
+      try { window.location.reload(); } catch { window.location.href = "/" }
     } catch (e) {
       setError("邮箱或密码错误")
     } finally {
