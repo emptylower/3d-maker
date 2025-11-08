@@ -83,7 +83,6 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('初始化…')
-  const [status, setStatus] = useState<string>('初始化…')
 
   useEffect(() => {
     let disposed = false
