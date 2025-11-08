@@ -5,13 +5,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
+import { useAppContext } from "@/contexts/app";
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
 export default function CredentialsLoginForm() {
+  const { setShowSignModal } = useAppContext();
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -60,7 +62,10 @@ export default function CredentialsLoginForm() {
       {error && <div role="alert" className="text-sm text-red-500">{error}</div>}
       <Button type="submit" disabled={loading}>{loading ? '登录中…' : '登录'}</Button>
       <div className="text-sm text-center text-muted-foreground">
-        还没有账号？<Link href="/auth/register" className="underline underline-offset-4">去注册</Link>
+        还没有账号？
+        <Link href="/auth/register" className="underline underline-offset-4" onClick={() => setShowSignModal(false)}>
+          去注册
+        </Link>
       </div>
     </form>
   )

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -64,7 +64,8 @@ export default function RegisterForm() {
       {error && <div role="alert" className="text-sm text-red-500">{error}</div>}
       <Button type="submit" disabled={loading}>{loading ? '注册中…' : '注册'}</Button>
       <div className="text-sm text-center text-muted-foreground">
-        已有账号？<Link href="/auth/signin" className="underline underline-offset-4">去登录</Link>
+        已有账号？
+        <Link href="/auth/signin" className="underline underline-offset-4">去登录</Link>
       </div>
     </form>
   )
