@@ -31,6 +31,8 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('初始化…')
+  const [progress, setProgress] = useState<number>(0)
+  const [showModel, setShowModel] = useState<boolean>(false)
 
   useEffect(() => {
     let disposed = false
@@ -39,6 +41,8 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
 
     const run = async () => {
       try {
+        setShowModel(false)
+        setProgress(0)
         const { THREE, MTLLoader, OBJLoader, OrbitControls } = await loadThreeModules()
 
         if (disposed) return
@@ -102,9 +106,17 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
 
         // URL modifier: map requested to signed ones
         const manager = new THREE.LoadingManager()
-        manager.onStart = (url: string, loaded: number, total: number) => { setStatus(`加载开始 (${loaded}/${total})`) }
-        manager.onProgress = (url: string, loaded: number, total: number) => { setStatus(`加载中 ${loaded}/${total}`) }
-        manager.onLoad = () => { if (!added) setStatus('解析中…') }
+        manager.onStart = (_url: string, loaded: number, total: number) => {
+          setStatus(`加载开始 (${loaded}/${total})`)
+          if (total > 0) setProgress(Math.min(99, Math.round((loaded / total) * 100)))
+        }
+        manager.onProgress = (_url: string, loaded: number, total: number) => {
+          setStatus(`加载中 ${loaded}/${total}`)
+          if (total > 0) setProgress((prev) => Math.max(prev, Math.min(99, Math.round((loaded / total) * 100))))
+        }
+        manager.onLoad = () => {
+          if (!added) { setStatus('解析中…') }
+        }
         manager.setURLModifier((url: string) => {
           try {
             const u = new URL(url, location.href)
@@ -155,8 +167,9 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           const g: any = await new Promise((resolve, reject) => {
             objLoader.load(obj.url, (gg: any) => resolve(gg), (ev: any) => {
               if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number') {
-                const p = Math.round(ev.loaded * 100 / Math.max(1, ev.total))
+                const p = Math.round((ev.loaded * 100) / Math.max(1, ev.total))
                 setStatus(`加载模型 ${p}%`)
+                setProgress((prev) => Math.max(prev, Math.min(99, p)))
               }
             }, (e: any) => reject(e))
           })
@@ -167,8 +180,9 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           const g: any = await new Promise((resolve, reject) => {
             objLoader.load(obj.url, (gg: any) => resolve(gg), (ev: any) => {
               if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number') {
-                const p = Math.round(ev.loaded * 100 / Math.max(1, ev.total))
+                const p = Math.round((ev.loaded * 100) / Math.max(1, ev.total))
                 setStatus(`加载模型 ${p}%`)
+                setProgress((prev) => Math.max(prev, Math.min(99, p)))
               }
             }, (e: any) => reject(e))
           })
@@ -218,7 +232,7 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           const texFile = files.find(f => /\.(png|jpe?g|webp)$/i.test(f.name))
           if (texFile) {
             try {
-              const tLoader = new THREE.TextureLoader()
+              const tLoader = new THREE.TextureLoader(manager)
               await new Promise<void>((resolve) => {
                 tLoader.load(texFile.url, (tex: any) => {
                   try {
@@ -278,6 +292,9 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         window.addEventListener('resize', onResize)
         // Render at least once in case RAF is throttled
         renderer.render(scene, camera)
+        // Mark as ready (no more network loads expected)
+        setProgress(100)
+        setShowModel(true)
       } catch (e: any) {
         console.error('ViewerOBJ error:', e)
         if (!disposed) setError(e?.message || 'failed to preview OBJ')
@@ -295,7 +312,26 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
 
   return (
     <div>
-      <div ref={containerRef} style={{ width: '100%', height, borderRadius: 8, overflow: 'hidden', background: '#f7f7f7' }} />
+      <div ref={containerRef} style={{ width: '100%', height, borderRadius: 8, overflow: 'hidden', background: '#f7f7f7', position: 'relative' }} />
+      {!showModel && (
+        <div style={{
+          position: 'relative',
+          marginTop: -height + 0,
+          height,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(247,247,247,0.9)',
+          borderRadius: 8,
+        }}>
+          <div style={{ width: '66%', maxWidth: 420 }}>
+            <div style={{ height: 8, background: '#e5e7eb', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${progress}%`, height: '100%', background: '#111827', transition: 'width 180ms ease' }} />
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>{status}（{progress}%）</div>
+          </div>
+        </div>
+      )}
       <div className="text-xs text-muted-foreground mt-1">{status}</div>
       {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
     </div>
