@@ -334,24 +334,35 @@ export default function ViewerOBJ({ files, height = 360, debug = false }: { file
 
   return (
     <div>
-      <div ref={containerRef} style={{ width: '100%', height, borderRadius: 8, overflow: 'hidden', background: '#f7f7f7', position: 'relative' }} />
-      {!showModel && (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'rgba(247,247,247,0.92)'
-        }}>
-          <div style={{ width: '66%', maxWidth: 420 }}>
-            <div style={{ height: 8, background: '#e5e7eb', borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ width: `${Math.round(uiProgress)}%`, height: '100%', background: '#111827', transition: 'width 240ms ease' }} />
+      <div style={{ position: 'relative', width: '100%', height, borderRadius: 8, overflow: 'hidden', background: '#f7f7f7' }}>
+        <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
+        {!showModel && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(247,247,247,0.92)'
+          }}>
+            <div style={{ width: '66%', maxWidth: 420 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="8" cy="8" r="6" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeDasharray="31.4" strokeDashoffset="15.7">
+                    <animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="0.8s" repeatCount="indefinite" />
+                  </circle>
+                </svg>
+                <div style={{ fontSize: 13, color: '#374151' }}>正在加载模型…</div>
+                <div style={{ marginLeft: 'auto', fontSize: 12, color: '#6b7280' }}>{Math.round(uiProgress)}%</div>
+              </div>
+              <div style={{ height: 8, background: '#e5e7eb', borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{ width: `${Math.round(uiProgress)}%`, height: '100%', background: '#111827', transition: 'width 240ms ease' }} />
+              </div>
+              {debug && <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>{status}</div>}
             </div>
-            {debug && <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>{status}（{Math.round(uiProgress)}%）</div>}
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {debug && <div className="text-xs text-muted-foreground mt-1">{status}</div>}
       {error && <div className="text-xs text-red-500 mt-1">{error}</div>}
     </div>
