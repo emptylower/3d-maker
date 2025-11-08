@@ -154,9 +154,9 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
                 try { mat.preload() } catch {}
                 materials = mat
                 resolve()
-              }, (ev) => {
-                if (ev && typeof (ev as any).loaded === 'number' && typeof (ev as any).total === 'number') {
-                  const p = Math.round((ev as any).loaded * 100 / Math.max(1, (ev as any).total))
+              }, (ev: any) => {
+                if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number') {
+                  const p = Math.round(ev.loaded * 100 / Math.max(1, ev.total))
                   setStatus(`加载材质 ${p}%`)
                 }
               }, () => resolve()) // resolve even if mtl missing
@@ -165,9 +165,9 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
           if (materials) objLoader.setMaterials(materials)
           console.log('[OBJ] loading OBJ(with mtl?):', !!materials)
           const g: any = await new Promise((resolve, reject) => {
-            objLoader.load(obj.url, (gg: any) => resolve(gg), (ev) => {
-              if (ev && typeof (ev as any).loaded === 'number' && typeof (ev as any).total === 'number') {
-                const p = Math.round((ev as any).loaded * 100 / Math.max(1, (ev as any).total))
+            objLoader.load(obj.url, (gg: any) => resolve(gg), (ev: any) => {
+              if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number') {
+                const p = Math.round(ev.loaded * 100 / Math.max(1, ev.total))
                 setStatus(`加载模型 ${p}%`)
               }
             }, (e: any) => reject(e))
@@ -177,9 +177,9 @@ export default function ViewerOBJ({ files, height = 360 }: { files: FileItem[]; 
         const loadObjOnly = async () => {
           console.log('[OBJ] fallback: loading OBJ only')
           const g: any = await new Promise((resolve, reject) => {
-            objLoader.load(obj.url, (gg: any) => resolve(gg), (ev) => {
-              if (ev && typeof (ev as any).loaded === 'number' && typeof (ev as any).total === 'number') {
-                const p = Math.round((ev as any).loaded * 100 / Math.max(1, (ev as any).total))
+            objLoader.load(obj.url, (gg: any) => resolve(gg), (ev: any) => {
+              if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number') {
+                const p = Math.round(ev.loaded * 100 / Math.max(1, ev.total))
                 setStatus(`加载模型 ${p}%`)
               }
             }, (e: any) => reject(e))
