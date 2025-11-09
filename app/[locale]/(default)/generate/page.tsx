@@ -3,7 +3,7 @@ import GeneratePanel from '@/components/generator/GeneratePanel'
 
 export default function GeneratePage() {
   return (
-    <div className="container py-12" data-testid="page-generate">
+    <div className="container py-12 min-h-full flex flex-col" data-testid="page-generate">
       {/* Hero */}
       <div className="mb-10 flex flex-col items-center text-center">
         <div className="hero-brand text-4xl md:text-6xl font-extrabold tracking-wider">
@@ -18,7 +18,9 @@ export default function GeneratePage() {
         </p>
       </div>
 
-      <GeneratePanel />
+      <div className="flex-1 flex flex-col min-h-0">
+        <GeneratePanel fullHeight />
+      </div>
     </div>
   )
 }

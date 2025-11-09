@@ -6,7 +6,7 @@ import UploadGuide from "@/components/generator/UploadGuide";
 
 type Mode = "general" | "portrait";
 
-export default function GeneratePanel() {
+export default function GeneratePanel({ fullHeight = false }: { fullHeight?: boolean }) {
   const [mode, setMode] = useState<Mode>("general");
   const [tab, setTab] = useState<"single" | "multi">("single");
 
@@ -26,7 +26,7 @@ export default function GeneratePanel() {
       </div>
 
       {/* 主卡片 */}
-      <div className="rounded-2xl border bg-card/60 backdrop-blur p-4">
+      <div className={`rounded-2xl border bg-card/60 backdrop-blur p-4 ${fullHeight ? 'h-full flex flex-col' : ''}`}> 
         {/* 页签标题 */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-6 text-sm">
@@ -39,11 +39,11 @@ export default function GeneratePanel() {
         </div>
 
         {/* 内容区 */}
-        <div className="">
+        <div className={`min-h-0 ${fullHeight ? 'flex-1 flex flex-col' : ''}`}>
           {tab === 'single' ? (
-            <GenerateForm __mode={mode} {...(mode === 'portrait' ? { __overrideModel: 'scene-portraitv1.5', __overrideResolution: '1536', __fixedTexture: true } : {})} />
+            <GenerateForm fill={fullHeight} __mode={mode} {...(mode === 'portrait' ? { __overrideModel: 'scene-portraitv1.5', __overrideResolution: '1536', __fixedTexture: true } : {})} />
           ) : (
-            <GenerateFormMulti mode={mode} />
+            <GenerateFormMulti fill={fullHeight} mode={mode} />
           )}
         </div>
       </div>

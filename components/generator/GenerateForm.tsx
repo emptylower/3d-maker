@@ -18,7 +18,7 @@ const resByModel: Record<Model, Resolution[]> = {
 }
 
 // 兼容旧用法：允许以 props 方式覆盖 model/resolution，并固定纹理
-export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', __overrideModel?: Model, __overrideResolution?: Resolution, __fixedTexture?: boolean }) {
+export default function GenerateForm(props?: { fill?: boolean, __mode?: 'general' | 'portrait', __overrideModel?: Model, __overrideResolution?: Resolution, __fixedTexture?: boolean }) {
   const [file, setFile] = useState<File | null>(null)
   const effectiveMode = props?.__mode || (props?.__overrideModel === 'scene-portraitv1.5' ? 'portrait' : 'general')
   const [model, setModel] = useState<Model>(props?.__overrideModel || (effectiveMode==='portrait' ? 'scene-portraitv1.5' : 'hitem3dv1.5'))
@@ -122,11 +122,12 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
     return () => URL.revokeObjectURL(url)
   }, [file])
 
+  const fill = !!props?.fill
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" data-testid="generate-form">
+    <form onSubmit={onSubmit} className={`grid gap-4 ${fill ? 'grid-rows-[1fr_auto_auto] min-h-0 h-full' : ''}`} data-testid="generate-form">
       {/* 上传大卡（可预览/拖拽替换） */}
       <div
-        className="rounded-2xl border bg-muted/20 min-h-[60vh] relative overflow-hidden group"
+        className={`rounded-2xl border bg-muted/20 relative overflow-hidden group ${fill ? 'flex-1 min-h-[24rem]' : 'h-72'}`}
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
         onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) setFile(f) }}
         onClick={() => fileInputRef.current?.click()}

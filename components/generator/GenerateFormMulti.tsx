@@ -15,7 +15,7 @@ const resByModel: Record<Model, Resolution[]> = {
   'scene-portraitv1.5': ['1536'],
 }
 
-export default function GenerateFormMulti({ mode = "general" as Mode }) {
+export default function GenerateFormMulti({ mode = "general" as Mode, fill = false as boolean }) {
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
   const [left, setLeft] = useState<File | null>(null);
@@ -135,12 +135,12 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
   useEffect(() => { if (!right) { setRightPreview(null); return } const u = URL.createObjectURL(right); setRightPreview(u); return () => URL.revokeObjectURL(u) }, [right])
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4" data-testid="generate-form-multi">
+    <form onSubmit={onSubmit} className={`grid gap-4 ${fill ? 'grid-rows-[1fr_auto_auto] h-full min-h-0' : ''}`} data-testid="generate-form-multi">
       {/* 主体上传区：左大卡 + 右侧三小卡（可预览/拖拽替换） */}
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-12 gap-4 min-h-0">
         <div className="col-span-9">
           <div
-            className="rounded-2xl border bg-muted/20 min-h-[60vh] relative overflow-hidden group"
+            className={`rounded-2xl border bg-muted/20 relative overflow-hidden group ${fill ? 'flex-1 min-h-[24rem]' : 'h-72'}`}
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
             onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) setFront(f) }}
             onClick={() => refFront.current?.click()}
@@ -167,8 +167,8 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
             <input ref={refFront} id="front-input" className="hidden" type="file" accept="image/*" onChange={(e) => setFront(e.currentTarget.files?.[0] || null)} />
           </div>
         </div>
-        <div className="col-span-3">
-          <div className="grid gap-4 grid-rows-3 h-[60vh]">
+        <div className="col-span-3 min-h-0">
+          <div className={`grid gap-4 grid-rows-3 ${fill ? 'h-full min-h-[24rem]' : 'h-64'}`}
             {[{k:'back',label:'后视图（可选）',preview:backPreview,set:setBack,ref:refBack},{k:'left',label:'左视图（可选）',preview:leftPreview,set:setLeft,ref:refLeft},{k:'right',label:'右视图（可选）',preview:rightPreview,set:setRight,ref:refRight}].map((it)=> (
               <div key={it.k}
                 className="rounded-xl border bg-muted/20 text-center h-full relative overflow-hidden group flex items-center justify-center"
