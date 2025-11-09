@@ -82,13 +82,15 @@ async function materializeObjFiles(user_uuid: string, asset_uuid: string, task_i
     const objUrl = replaceExt(baseUrl, 'obj')
     if (!objUrl) { pushStep({ reason: 'replace_ext_failed', baseUrl }); return { ok: false, debug: dbg } }
 
-    const origin = new URL(objUrl).origin
     const baseQS = new URL(objUrl).search // keep auth_key style queries
     const headers: Record<string, string> = {}
-    headers['Referer'] = process.env.HITEM3D_REFERER || origin
-    headers['Origin'] = process.env.HITEM3D_REFERER || origin
-    headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-    if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+    if (process.env.HITEM3D_REFERER) {
+      headers['Referer'] = process.env.HITEM3D_REFERER
+      headers['Origin'] = process.env.HITEM3D_REFERER
+    }
+    headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+    headers['Accept'] = '*/*'
+    headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
 
     const storage = newStorage()
     // Try vendor-provided ZIP first (common for OBJ+MTL+textures)
@@ -195,7 +197,8 @@ async function tryExtractFromExistingZipInStorage(user_uuid: string, asset_uuid:
     const storage = newStorage()
     const basePrefix = `assets/${user_uuid}/${asset_uuid}/`
     const keys = await storage.listObjects({ prefix: basePrefix })
-    const candidates = (keys || []).filter(k => /\/file\.obj\.zip$/i.test(k) || /\/obj\/file\.obj\.zip$/i.test(k))
+    // accept both file.obj.zip and file.zip as sources
+    const candidates = (keys || []).filter(k => /\/file\.(obj\.)?zip$/i.test(k) || /\/obj\/file\.obj\.zip$/i.test(k))
     if (!candidates.length) return { ok: false, note: 'no_zip_found' }
     let total = 0
     for (const zipKey of candidates) {

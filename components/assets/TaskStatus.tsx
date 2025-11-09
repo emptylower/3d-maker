@@ -8,7 +8,12 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [vendorUrl, setVendorUrl] = useState<string | null>(null)
-  const vendorExt = useMemo(() => (vendorUrl ? vendorUrl.split('.').pop()?.toLowerCase() : ''), [vendorUrl])
+  const vendorExt = useMemo(() => {
+    if (!vendorUrl) return ''
+    // drop query/hash when detecting extension
+    const clean = vendorUrl.split('?')[0].split('#')[0]
+    return clean.split('.').pop()?.toLowerCase() || ''
+  }, [vendorUrl])
 
   const fetchOnce = async () => {
     try {
@@ -88,7 +93,8 @@ export default function TaskStatus({ taskId }: { taskId: string }) {
           </div>
         ) : (
           <div className="text-xs text-muted-foreground">
-            供应商当前返回 {vendorExt?.toUpperCase()} 链接（可能缺少 .MTL/贴图），暂不支持在线预览。
+            供应商当前返回 {vendorExt?.toUpperCase()} 链接（可能缺少 .MTL/贴图）。列表页暂不直接预览此格式，
+            生成文件入库后可在“查看详情”中使用 OBJ 在线预览。
             <a className="underline ml-2" href={vendorUrl} target="_blank" rel="noopener noreferrer">临时下载</a>
           </div>
         )

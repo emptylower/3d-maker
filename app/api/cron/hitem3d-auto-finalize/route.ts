@@ -45,12 +45,14 @@ export async function GET(req: Request) {
         if (cover_url) {
           const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
           const key = buildAssetKey({ user_uuid, asset_uuid, filename: `cover.${ext}` })
-          const origin = new URL(cover_url).origin
           const headers: Record<string, string> = {}
-          headers['Referer'] = process.env.HITEM3D_REFERER || origin
-          headers['Origin'] = process.env.HITEM3D_REFERER || origin
-          headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-          if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+          if (process.env.HITEM3D_REFERER) {
+            headers['Referer'] = process.env.HITEM3D_REFERER
+            headers['Origin'] = process.env.HITEM3D_REFERER
+          }
+          headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+          headers['Accept'] = '*/*'
+          headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
           await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers })
           cover_key = key
         }
@@ -59,12 +61,14 @@ export async function GET(req: Request) {
         if (file_url) {
           const ext = (new URL(file_url).pathname.split('.').pop() || 'glb').toLowerCase()
           const key = buildAssetKey({ user_uuid, asset_uuid, filename: `file.${ext}` })
-          const origin = new URL(file_url).origin
           const headers: Record<string, string> = {}
-          headers['Referer'] = process.env.HITEM3D_REFERER || origin
-          headers['Origin'] = process.env.HITEM3D_REFERER || origin
-          headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-          if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+          if (process.env.HITEM3D_REFERER) {
+            headers['Referer'] = process.env.HITEM3D_REFERER
+            headers['Origin'] = process.env.HITEM3D_REFERER
+          }
+          headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+          headers['Accept'] = '*/*'
+          headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
           await storage.downloadAndUpload({ url: file_url, key, disposition: 'attachment', headers })
           file_key_full = key
         }
@@ -135,10 +139,13 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
       try {
         const origin = new URL(c.url).origin
         const headers: Record<string, string> = {}
-        headers['Referer'] = process.env.HITEM3D_REFERER || origin
-        headers['Origin'] = process.env.HITEM3D_REFERER || origin
-        headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-        if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+        if (process.env.HITEM3D_REFERER) {
+          headers['Referer'] = process.env.HITEM3D_REFERER
+          headers['Origin'] = process.env.HITEM3D_REFERER
+        }
+        headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+        headers['Accept'] = '*/*'
+        headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
         const head = await fetch(c.url, { method: 'HEAD', headers })
         if (head.ok) { chosen = c; break }
         const get = await fetch(c.url, { method: 'GET', headers })
@@ -152,10 +159,13 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
 
     const origin = new URL(chosen.url).origin
     const headers: Record<string, string> = {}
-    headers['Referer'] = process.env.HITEM3D_REFERER || origin
-    headers['Origin'] = process.env.HITEM3D_REFERER || origin
-    headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-    if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+    if (process.env.HITEM3D_REFERER) {
+      headers['Referer'] = process.env.HITEM3D_REFERER
+      headers['Origin'] = process.env.HITEM3D_REFERER
+    }
+    headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+    headers['Accept'] = '*/*'
+    headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
 
     const storage = newStorage()
     const filename = chosen.isZip ? `file.${fmt}.zip` : `file.${fmt}`

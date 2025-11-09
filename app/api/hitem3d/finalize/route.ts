@@ -32,12 +32,15 @@ export async function POST(req: Request) {
     if (cover_url) {
       const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
       const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `cover.${ext}` })
-      const coverOrigin = new URL(cover_url).origin
       const headers: Record<string, string> = {}
-      headers['Referer'] = process.env.HITEM3D_REFERER || coverOrigin
-      headers['Origin'] = process.env.HITEM3D_REFERER || coverOrigin
-      headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-      if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+      // 仅当配置了固定 REFERER 时才显式携带 Referer/Origin；否则保持为空更接近浏览器直链下载
+      if (process.env.HITEM3D_REFERER) {
+        headers['Referer'] = process.env.HITEM3D_REFERER
+        headers['Origin'] = process.env.HITEM3D_REFERER
+      }
+      headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+      headers['Accept'] = '*/*'
+      headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
       const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
       await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers, contentType: ctypeMap[ext] })
       cover_key = key
@@ -48,12 +51,14 @@ export async function POST(req: Request) {
     if (file_url) {
       const ext = (new URL(file_url).pathname.split('.').pop() || 'glb').toLowerCase()
       const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `file.${ext}` })
-      const fileOrigin = new URL(file_url).origin
       const headers: Record<string, string> = {}
-      headers['Referer'] = process.env.HITEM3D_REFERER || fileOrigin
-      headers['Origin'] = process.env.HITEM3D_REFERER || fileOrigin
-      headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-      if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+      if (process.env.HITEM3D_REFERER) {
+        headers['Referer'] = process.env.HITEM3D_REFERER
+        headers['Origin'] = process.env.HITEM3D_REFERER
+      }
+      headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+      headers['Accept'] = '*/*'
+      headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
       const ctype = ext === 'glb' ? 'model/gltf-binary' : undefined
       await storage.downloadAndUpload({ url: file_url, key, disposition: 'attachment', headers, contentType: ctype })
       file_key_full = key

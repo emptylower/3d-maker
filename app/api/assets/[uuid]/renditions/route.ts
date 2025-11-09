@@ -111,12 +111,14 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
     let chosen: { url: string; isZip: boolean } | null = null
     for (const c of candidates) {
       try {
-        const origin = new URL(c.url).origin
         const headers: Record<string, string> = {}
-        headers['Referer'] = process.env.HITEM3D_REFERER || origin
-        headers['Origin'] = process.env.HITEM3D_REFERER || origin
-        headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-        if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+        if (process.env.HITEM3D_REFERER) {
+          headers['Referer'] = process.env.HITEM3D_REFERER
+          headers['Origin'] = process.env.HITEM3D_REFERER
+        }
+        headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+        headers['Accept'] = '*/*'
+        headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
         const head = await fetch(c.url, { method: 'HEAD', headers })
         if (head.ok) { chosen = c; break }
         const get = await fetch(c.url, { method: 'GET', headers })
@@ -128,12 +130,14 @@ async function tryFetchVendorFormat(user_uuid: string, asset_uuid: string, task_
       return 'processing'
     }
 
-    const origin = new URL(chosen.url).origin
     const headers: Record<string, string> = {}
-    headers['Referer'] = process.env.HITEM3D_REFERER || origin
-    headers['Origin'] = process.env.HITEM3D_REFERER || origin
-    headers['User-Agent'] = process.env.HITEM3D_UA || '3D-MARKER/1.0'
-    if (process.env.HITEM3D_APPID) headers['Appid'] = process.env.HITEM3D_APPID
+    if (process.env.HITEM3D_REFERER) {
+      headers['Referer'] = process.env.HITEM3D_REFERER
+      headers['Origin'] = process.env.HITEM3D_REFERER
+    }
+    headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+    headers['Accept'] = '*/*'
+    headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
 
     const storage = newStorage()
     // If plain OBJ and supplier has no zip, attempt to package OBJ+MTL+textures into zip
