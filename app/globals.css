@@ -16,6 +16,17 @@ html {
     @apply bg-background text-foreground;
   }
 
+  /* Artistic display text for hero brand */
+  .hero-brand {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: linear-gradient(90deg, hsl(var(--primary)) 0%, #ffb86c 35%, #8be9fd 70%, hsl(var(--primary)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 8px 40px rgba(255, 184, 108, 0.15), 0 2px 16px rgba(139, 233, 253, 0.12);
+  }
+
   :root {
     --sidebar-background: var(--background);
     --sidebar-foreground: var(--foreground);

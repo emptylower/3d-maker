@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import GenerateForm from "@/components/generator/GenerateForm";
 import GenerateFormMulti from "@/components/generator/GenerateFormMulti";
-import UploadGuideDialog from "@/components/generator/UploadGuideDialog";
+import UploadGuide from "@/components/generator/UploadGuide";
 
 type Mode = "general" | "portrait";
 
@@ -31,11 +31,11 @@ export default function GeneratePanel() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-6 text-sm">
             <button type="button" aria-label="单图生成3D" onClick={() => onClickTab('single')}
-              className={`pb-1 ${tab==='single'?'border-b-2 border-primary font-semibold':'opacity-70'}`}>Image to 3D</button>
+              className={`pb-1 ${tab==='single'?'border-b-2 border-primary font-semibold':'opacity-70'}`}>单图生成3D</button>
             <button type="button" aria-label="多视图生成3D" onClick={() => onClickTab('multi')}
-              className={`pb-1 ${tab==='multi'?'border-b-2 border-primary font-semibold':'opacity-70'}`}>Multi-view to 3D</button>
+              className={`pb-1 ${tab==='multi'?'border-b-2 border-primary font-semibold':'opacity-70'}`}>多视图生成3D</button>
           </div>
-          <UploadGuideDialog />
+          <UploadGuide />
         </div>
 
         {/* 内容区 */}

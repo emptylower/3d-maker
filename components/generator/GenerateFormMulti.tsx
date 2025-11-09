@@ -1,9 +1,8 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ImageUp } from "lucide-react";
+import { ImageUp, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { resolveCreditsCost } from "@/lib/credits/cost";
 
 type Mode = "general" | "portrait";
@@ -28,7 +27,14 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
   const [message, setMessage] = useState("");
   const [leftCredits, setLeftCredits] = useState<number | null>(null)
   const [successTaskId, setSuccessTaskId] = useState<string | null>(null)
-  const [face, setFace] = useState<string>("")
+  const [frontPreview, setFrontPreview] = useState<string | null>(null)
+  const [backPreview, setBackPreview] = useState<string | null>(null)
+  const [leftPreview, setLeftPreview] = useState<string | null>(null)
+  const [rightPreview, setRightPreview] = useState<string | null>(null)
+  const refFront = useRef<HTMLInputElement | null>(null)
+  const refBack = useRef<HTMLInputElement | null>(null)
+  const refLeft = useRef<HTMLInputElement | null>(null)
+  const refRight = useRef<HTMLInputElement | null>(null)
 
   const files = useMemo(() => ({ front, back, left, right }), [front, back, left, right]);
 
@@ -86,9 +92,7 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
         if (left) fd.append("multi_images", left, left.name || "left.png");
         if (right) fd.append("multi_images", right, right.name || "right.png");
       }
-      if (face && Number(face) >= 100000 && Number(face) <= 2000000) {
-        fd.append('face', String(Math.floor(Number(face))))
-      }
+      // 面数自动，前端不暴露
 
       const resp = await fetch('/api/hitem3d/submit', { method: 'POST', body: fd });
       if (resp.status === 401) { setMessage('请先登录后再提交'); return; }
@@ -124,39 +128,68 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
     fetchLeft()
   }, [])
 
+  // previews lifecycle
+  useEffect(() => { if (!front) { setFrontPreview(null); return } const u = URL.createObjectURL(front); setFrontPreview(u); return () => URL.revokeObjectURL(u) }, [front])
+  useEffect(() => { if (!back) { setBackPreview(null); return } const u = URL.createObjectURL(back); setBackPreview(u); return () => URL.revokeObjectURL(u) }, [back])
+  useEffect(() => { if (!left) { setLeftPreview(null); return } const u = URL.createObjectURL(left); setLeftPreview(u); return () => URL.revokeObjectURL(u) }, [left])
+  useEffect(() => { if (!right) { setRightPreview(null); return } const u = URL.createObjectURL(right); setRightPreview(u); return () => URL.revokeObjectURL(u) }, [right])
+
   return (
     <form onSubmit={onSubmit} className="grid gap-4" data-testid="generate-form-multi">
-      {/* 主体上传区：左大卡 + 右侧三小卡 */}
+      {/* 主体上传区：左大卡 + 右侧三小卡（可预览/拖拽替换） */}
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-9">
-          <div className="rounded-xl border bg-muted/20 p-6 h-64 flex flex-col items-center justify-center text-center">
-            <ImageUp className="w-10 h-10 opacity-70 mb-3" />
-            <div className="font-semibold mb-1">前视图（必选）</div>
-            <div className="text-xs opacity-70">支持格式：JPG/JPEG/PNG/Webp</div>
-            <div className="text-xs opacity-70">最大大小：20MB</div>
-            <div className="mt-3">
-              <Label htmlFor="front-input" className="sr-only">前视图（必选）</Label>
-              <Input id="front-input" type="file" accept="image/*" onChange={(e) => setFront(e.currentTarget.files?.[0] || null)} />
-            </div>
+          <div
+            className="rounded-2xl border bg-muted/20 h-72 relative overflow-hidden group"
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) setFront(f) }}
+            onClick={() => refFront.current?.click()}
+            role="button"
+            aria-label="上传或替换前视图"
+          >
+            {frontPreview ? (
+              <>
+                <div className="absolute inset-0 bg-center bg-cover" style={{ backgroundImage: `url(${frontPreview})` }} />
+                <button type="button" className="absolute right-3 top-3 z-10 rounded-full bg-background/70 p-1.5 border hover:bg-background" onClick={(e)=>{e.stopPropagation(); setFront(null)}} aria-label="移除">
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/30 text-foreground">
+                  <div className="flex items-center gap-2 text-sm"><ImageUp className="w-5 h-5" /> 点击或拖拽替换</div>
+                </div>
+              </>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                <ImageUp className="w-10 h-10 opacity-70 mb-3" />
+                <div className="font-semibold mb-1">前视图（必选）</div>
+                <div className="text-xs opacity-70">支持 JPG/JPEG/PNG/WebP，单张 ≤ 20MB</div>
+              </div>
+            )}
+            <input ref={refFront} id="front-input" className="hidden" type="file" accept="image/*" onChange={(e) => setFront(e.currentTarget.files?.[0] || null)} />
           </div>
         </div>
         <div className="col-span-3">
           <div className="grid gap-4 grid-rows-3 h-64">
-            <div className="rounded-xl border bg-muted/20 p-4 text-center h-full flex flex-col justify-center">
-              <div className="text-sm mb-2">后视图（可选）</div>
-              <Label htmlFor="back-input" className="sr-only">后视图（可选）</Label>
-              <Input id="back-input" type="file" accept="image/*" onChange={(e) => setBack(e.currentTarget.files?.[0] || null)} />
-            </div>
-            <div className="rounded-xl border bg-muted/20 p-4 text-center h-full flex flex-col justify-center">
-              <div className="text-sm mb-2">左视图（可选）</div>
-              <Label htmlFor="left-input" className="sr-only">左视图（可选）</Label>
-              <Input id="left-input" type="file" accept="image/*" onChange={(e) => setLeft(e.currentTarget.files?.[0] || null)} />
-            </div>
-            <div className="rounded-xl border bg-muted/20 p-4 text-center h-full flex flex-col justify-center">
-              <div className="text-sm mb-2">右视图（可选）</div>
-              <Label htmlFor="right-input" className="sr-only">右视图（可选）</Label>
-              <Input id="right-input" type="file" accept="image/*" onChange={(e) => setRight(e.currentTarget.files?.[0] || null)} />
-            </div>
+            {[{k:'back',label:'后视图（可选）',preview:backPreview,set:setBack,ref:refBack},{k:'left',label:'左视图（可选）',preview:leftPreview,set:setLeft,ref:refLeft},{k:'right',label:'右视图（可选）',preview:rightPreview,set:setRight,ref:refRight}].map((it)=> (
+              <div key={it.k}
+                className="rounded-xl border bg-muted/20 text-center h-full relative overflow-hidden group flex items-center justify-center"
+                onDragOver={(e)=>{e.preventDefault(); e.stopPropagation()}}
+                onDrop={(e)=>{e.preventDefault(); const f=e.dataTransfer.files?.[0]; if(f) (it.set as any)(f)}}
+                onClick={()=> (it.ref as any).current?.click()}
+                role="button"
+              >
+                {it.preview ? (
+                  <>
+                    <div className="absolute inset-0 bg-center bg-cover" style={{ backgroundImage: `url(${it.preview})` }} />
+                    <div className="absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/30 text-foreground">
+                      <div className="flex items-center gap-1 text-xs"><ImageUp className="w-4 h-4" /> 替换</div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs opacity-80 px-2">{it.label}</div>
+                )}
+                <input ref={it.ref as any} className="hidden" type="file" accept="image/*" onChange={(e)=> (it.set as any)(e.currentTarget.files?.[0] || null)} />
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -164,45 +197,35 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
       {/* 底部操作条 */}
       <div className="flex items-center justify-between rounded-xl border bg-muted/10 px-4 py-3">
         <div className="flex items-center gap-3 text-sm">
-          <label className="inline-flex items-center gap-2">
-            <span>模型</span>
-            <select className="border rounded px-2 py-1" value={model} onChange={(e) => setModel(e.target.value as Model)} disabled={mode==='portrait'}>
+          {/* 模型：卡片选项 */}
+          <div className="flex items-center gap-2">
+            <span className="opacity-70">模型</span>
+            <div className="flex items-center gap-2">
               {modelChoices.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <button key={m} type="button" onClick={() => setModel(m)} disabled={mode==='portrait'}
+                  className={`px-3 py-1.5 rounded-xl border ${m===model?'border-primary bg-background shadow':'opacity-70 hover:opacity-100'} ${mode==='portrait'?'opacity-60 cursor-not-allowed':''}`}>{m}</button>
               ))}
-            </select>
-          </label>
+            </div>
+          </div>
           {mode !== 'portrait' ? (
-            <label className="inline-flex items-center gap-2">
-              <span>分辨率</span>
-              <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
+            <div className="flex items-center gap-2">
+              <span className="opacity-70">分辨率</span>
+              <div className="flex items-center gap-2">
                 {allowedRes.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <button key={r} type="button" onClick={() => setResolution(r)}
+                    className={`px-3 py-1.5 rounded-xl border ${r===resolution?'border-primary bg-background shadow':'opacity-70 hover:opacity-100'}`}>{r === '1536pro' ? '1536P³pro' : r}</button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
           ) : (
             <div className="px-3 py-1 rounded bg-muted">1536P³</div>
           )}
           {model !== 'scene-portraitv1.5' && (
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" aria-label="启用纹理" checked={withTexture} onChange={(e) => setWithTexture(e.currentTarget.checked)} />
               <span>纹理</span>
+              <Switch checked={withTexture} onCheckedChange={(v)=> setWithTexture(!!v)} />
             </label>
           )}
-          {/* 高级：面数（可选） */}
-          <label className="inline-flex items-center gap-2">
-            <span>面数</span>
-            <input
-              type="number"
-              className="border rounded px-2 py-1 w-28"
-              placeholder="自动"
-              min={100000}
-              max={2000000}
-              value={face}
-              onChange={(e) => setFace(e.currentTarget.value)}
-            />
-          </label>
         </div>
         <div className="flex items-center gap-4">
           <div aria-live="polite" data-testid="cost-hint" className="text-sm opacity-80">预计消耗 {cost} 积分{leftCredits !== null ? ` ｜ 剩余 ${leftCredits}` : ''}</div>
