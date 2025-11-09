@@ -15,8 +15,8 @@ export default function GeneratePanel() {
 
   return (
     <div className="grid gap-4" data-testid="generate-panel">
-      {/* 顶部模式切换：通用 / 人像（胶囊按钮） */}
-      <div className="flex items-center gap-3">
+      {/* 顶部模式切换：通用 / 人像（胶囊按钮，居中） */}
+      <div className="flex items-center justify-center gap-3">
         <div className="inline-flex rounded-full bg-muted p-1">
           <button type="button" aria-label="切换通用" onClick={() => onClickMode('general')}
             className={`px-4 py-1 rounded-full text-sm ${mode==='general'?'bg-background shadow':'opacity-70'}`}>通用</button>

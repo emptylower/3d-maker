@@ -140,7 +140,7 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-9">
           <div
-            className="rounded-2xl border bg-muted/20 h-72 relative overflow-hidden group"
+            className="rounded-2xl border bg-muted/20 min-h-[60vh] relative overflow-hidden group"
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
             onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) setFront(f) }}
             onClick={() => refFront.current?.click()}
@@ -168,7 +168,7 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
           </div>
         </div>
         <div className="col-span-3">
-          <div className="grid gap-4 grid-rows-3 h-64">
+          <div className="grid gap-4 grid-rows-3 h-[60vh]">
             {[{k:'back',label:'后视图（可选）',preview:backPreview,set:setBack,ref:refBack},{k:'left',label:'左视图（可选）',preview:leftPreview,set:setLeft,ref:refLeft},{k:'right',label:'右视图（可选）',preview:rightPreview,set:setRight,ref:refRight}].map((it)=> (
               <div key={it.k}
                 className="rounded-xl border bg-muted/20 text-center h-full relative overflow-hidden group flex items-center justify-center"
@@ -203,7 +203,7 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
             <div className="flex items-center gap-2">
               {modelChoices.map((m) => (
                 <button key={m} type="button" onClick={() => setModel(m)} disabled={mode==='portrait'}
-                  className={`px-3 py-1.5 rounded-xl border ${m===model?'border-primary bg-background shadow':'opacity-70 hover:opacity-100'} ${mode==='portrait'?'opacity-60 cursor-not-allowed':''}`}>{m}</button>
+                  className={`px-3 py-1.5 rounded-xl border ${m===model?'border-primary bg-background shadow':'opacity-70 hover:opacity-100'} ${mode==='portrait'?'opacity-60 cursor-not-allowed':''}`}>{modelLabel(m)}</button>
               ))}
             </div>
           </div>
@@ -242,3 +242,8 @@ export default function GenerateFormMulti({ mode = "general" as Mode }) {
     </form>
   );
 }
+  const modelLabel = (m: Model) => {
+    if (m === 'hitem3dv1') return 'v1'
+    if (m === 'hitem3dv1.5') return 'v1.5'
+    return '人像 v1.5'
+  }

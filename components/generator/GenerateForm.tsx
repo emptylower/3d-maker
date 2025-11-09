@@ -126,7 +126,7 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
     <form onSubmit={onSubmit} className="grid gap-4" data-testid="generate-form">
       {/* 上传大卡（可预览/拖拽替换） */}
       <div
-        className="rounded-2xl border bg-muted/20 h-72 relative overflow-hidden group"
+        className="rounded-2xl border bg-muted/20 min-h-[60vh] relative overflow-hidden group"
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
         onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) setFile(f) }}
         onClick={() => fileInputRef.current?.click()}
@@ -176,7 +176,7 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
                       onClick={() => setModel(m)}
                       className={`px-3 py-1.5 rounded-xl border ${m===model?'border-primary bg-background shadow':'opacity-70 hover:opacity-100'}`}
                     >
-                      {m}
+                      {modelLabel(m)}
                     </button>
                   ))}
                 </div>
@@ -232,3 +232,8 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
     </form>
   )
 }
+  const modelLabel = (m: Model) => {
+    if (m === 'hitem3dv1') return 'v1'
+    if (m === 'hitem3dv1.5') return 'v1.5'
+    return '人像 v1.5'
+  }
