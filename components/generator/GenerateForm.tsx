@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,9 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
   const [withTexture, setWithTexture] = useState(!!props?.__fixedTexture)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState("")
+  const [leftCredits, setLeftCredits] = useState<number | null>(null)
+  const [successTaskId, setSuccessTaskId] = useState<string | null>(null)
+  const [face, setFace] = useState<string>("")
 
   // Keep resolution in sync with model constraints
   const modelChoices = useMemo(() => (effectiveMode === 'portrait' ? (['scene-portraitv1.5'] as Model[]) : (['hitem3dv1','hitem3dv1.5'] as Model[])), [effectiveMode])
@@ -64,6 +67,9 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
       fd.append('images', file, file.name || 'image.png')
       // 默认产出 OBJ（下载友好），后台会自动补齐其它格式（含 GLB 便于预览）
       fd.append('format', '1')
+      if (face && Number(face) >= 100000 && Number(face) <= 2000000) {
+        fd.append('face', String(Math.floor(Number(face))))
+      }
       const resp = await fetch('/api/hitem3d/submit', { method: 'POST', body: fd })
       if (resp.status === 401) {
         setMessage('请先登录后再提交')
@@ -85,6 +91,7 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
       }
       if (json?.code === 0) {
         setMessage('已提交，预览生成中。前往我的资产查看进度。')
+        if (json?.data?.task_id) setSuccessTaskId(String(json.data.task_id))
         // 在产品里通常会跳转 /my-assets，这里保留提示即可
       } else {
         setMessage('提交失败，请稍后重试')
@@ -93,6 +100,20 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
       setSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    // 获取用户剩余积分
+    const fetchLeft = async () => {
+      try {
+        const r = await fetch('/api/my-credits/left')
+        if (!r.ok) return
+        const j = await r.json().catch(() => null)
+        const left = j?.data?.left_credits
+        if (typeof left === 'number') setLeftCredits(left)
+      } catch {}
+    }
+    fetchLeft()
+  }, [])
 
   return (
     <form onSubmit={onSubmit} className="grid gap-4" data-testid="generate-form">
@@ -121,14 +142,14 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
                   ))}
                 </select>
               </label>
-              <label className="inline-flex items-center gap-2">
-                <span>分辨率</span>
-                <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
-                  {allowedRes.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              </label>
+          <label className="inline-flex items-center gap-2">
+            <span>分辨率</span>
+            <select className="border rounded px-2 py-1" value={resolution} onChange={(e) => setResolution(e.target.value as Resolution)}>
+              {allowedRes.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
             </>
           ) : (
             <>
@@ -147,9 +168,24 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
               <span>纹理</span>
             </label>
           )}
+          {/* 高级：面数（可选） */}
+          <label className="inline-flex items-center gap-2">
+            <span>面数</span>
+            <input
+              type="number"
+              className="border rounded px-2 py-1 w-28"
+              placeholder="自动"
+              min={100000}
+              max={2000000}
+              value={face}
+              onChange={(e) => setFace(e.currentTarget.value)}
+            />
+          </label>
         </div>
         <div className="flex items-center gap-4">
-          <div aria-live="polite" data-testid="cost-hint" className="text-sm opacity-80">预计消耗 {cost} 积分</div>
+          <div aria-live="polite" data-testid="cost-hint" className="text-sm opacity-80">
+            预计消耗 {cost} 积分{leftCredits !== null ? ` ｜ 剩余 ${leftCredits}` : ''}
+          </div>
           <Button type="submit" disabled={!file || submitting}>
             {submitting ? '提交中…' : '提交生成'}
           </Button>
@@ -158,6 +194,11 @@ export default function GenerateForm(props?: { __mode?: 'general' | 'portrait', 
 
       {message && (
         <div role="status" className="text-sm text-muted-foreground">{message}</div>
+      )}
+      {successTaskId && (
+        <div className="text-sm">
+          <a className="underline" href="/my-assets" target="_self">前往我的资产</a>
+        </div>
       )}
     </form>
   )
