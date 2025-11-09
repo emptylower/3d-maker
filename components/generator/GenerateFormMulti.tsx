@@ -42,6 +42,11 @@ export default function GenerateFormMulti({ mode = "general" as Mode, fill = fal
 
   const modelChoices = useMemo(() => (mode === 'portrait' ? (['scene-portraitv1.5'] as Model[]) : (['hitem3dv1','hitem3dv1.5'] as Model[])), [mode])
   const allowedRes = useMemo(() => resByModel[model], [model])
+  const modelLabel = (m: Model) => {
+    if (m === 'hitem3dv1') return 'v1'
+    if (m === 'hitem3dv1.5') return 'v1.5'
+    return '人像 v1.5'
+  }
   React.useEffect(() => {
     if (mode === 'portrait') {
       if (model !== 'scene-portraitv1.5') setModel('scene-portraitv1.5')
@@ -168,7 +173,7 @@ export default function GenerateFormMulti({ mode = "general" as Mode, fill = fal
           </div>
         </div>
         <div className="col-span-3 min-h-0">
-          <div className={`grid gap-4 grid-rows-3 ${fill ? 'h-full min-h-[24rem]' : 'h-64'}`}
+          <div className={`grid gap-4 grid-rows-3 ${fill ? 'h-full min-h-[24rem]' : 'h-64'}`}>
             {[{k:'back',label:'后视图（可选）',preview:backPreview,set:setBack,ref:refBack},{k:'left',label:'左视图（可选）',preview:leftPreview,set:setLeft,ref:refLeft},{k:'right',label:'右视图（可选）',preview:rightPreview,set:setRight,ref:refRight}].map((it)=> (
               <div key={it.k}
                 className="rounded-xl border bg-muted/20 text-center h-full relative overflow-hidden group flex items-center justify-center"
@@ -242,8 +247,3 @@ export default function GenerateFormMulti({ mode = "general" as Mode, fill = fal
     </form>
   );
 }
-  const modelLabel = (m: Model) => {
-    if (m === 'hitem3dv1') return 'v1'
-    if (m === 'hitem3dv1.5') return 'v1.5'
-    return '人像 v1.5'
-  }
