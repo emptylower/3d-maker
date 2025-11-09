@@ -16,7 +16,7 @@ export default async function DefaultLayout({
   return (
     <>
       {page.header && <Header header={page.header} />}
-      <main className="overflow-x-hidden">{children}</main>
+      <main className="flex-1 overflow-x-hidden">{children}</main>
       {page.footer && <Footer footer={page.footer} />}
     </>
   );
