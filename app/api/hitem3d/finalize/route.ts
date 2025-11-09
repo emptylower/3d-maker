@@ -30,37 +30,83 @@ export async function POST(req: Request) {
     // cover
     let cover_key: string | undefined
     if (cover_url) {
-      const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
-      const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `cover.${ext}` })
-      const headers: Record<string, string> = {}
-      // 仅当配置了固定 REFERER 时才显式携带 Referer/Origin；否则保持为空更接近浏览器直链下载
-      if (process.env.HITEM3D_REFERER) {
-        headers['Referer'] = process.env.HITEM3D_REFERER
-        headers['Origin'] = process.env.HITEM3D_REFERER
+      try {
+        const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
+        const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `cover.${ext}` })
+        const headers: Record<string, string> = {}
+        if (process.env.HITEM3D_REFERER) {
+          headers['Referer'] = process.env.HITEM3D_REFERER
+          headers['Origin'] = process.env.HITEM3D_REFERER
+        }
+        headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+        headers['Accept'] = '*/*'
+        headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
+        const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
+        await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers, contentType: ctypeMap[ext] })
+        cover_key = key
+      } catch {
+        // best-effort: ignore cover failures
       }
-      headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
-      headers['Accept'] = '*/*'
-      headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
-      const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
-      await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers, contentType: ctypeMap[ext] })
-      cover_key = key
     }
 
-    // file
+    // file (with fallback to *.obj.zip / *.zip when vendor url not accessible)
     let file_key_full: string | undefined
     if (file_url) {
-      const ext = (new URL(file_url).pathname.split('.').pop() || 'glb').toLowerCase()
-      const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `file.${ext}` })
-      const headers: Record<string, string> = {}
+      const baseHeaders: Record<string, string> = {}
       if (process.env.HITEM3D_REFERER) {
-        headers['Referer'] = process.env.HITEM3D_REFERER
-        headers['Origin'] = process.env.HITEM3D_REFERER
+        baseHeaders['Referer'] = process.env.HITEM3D_REFERER
+        baseHeaders['Origin'] = process.env.HITEM3D_REFERER
       }
-      headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
-      headers['Accept'] = '*/*'
-      headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
-      const ctype = ext === 'glb' ? 'model/gltf-binary' : undefined
-      await storage.downloadAndUpload({ url: file_url, key, disposition: 'attachment', headers, contentType: ctype })
+      baseHeaders['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+      baseHeaders['Accept'] = '*/*'
+      baseHeaders['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
+
+      const pickZipCandidates = (u: string): string[] => {
+        try {
+          const url = new URL(u)
+          const segs = url.pathname.split('/')
+          const last = segs[segs.length - 1]
+          if (!last.includes('.')) return []
+          const known = new Set(['zip', 'obj', 'glb', 'stl', 'fbx'])
+          let name = last
+          for (let i = 0; i < 2; i++) {
+            const idx = name.lastIndexOf('.')
+            if (idx === -1) break
+            const ext = name.substring(idx + 1).toLowerCase()
+            if (known.has(ext)) name = name.substring(0, idx); else break
+          }
+          const dir = segs.slice(0, -1).join('/')
+          const z1 = new URL(url.toString()); z1.pathname = `${dir}/${name}.obj.zip`
+          const z2 = new URL(url.toString()); z2.pathname = `${dir}/${name}.zip`
+          const out = [z1.toString()]
+          if (z2.toString() !== z1.toString()) out.push(z2.toString())
+          return out
+        } catch { return [] }
+      }
+
+      let targetUrl = file_url
+      // try original
+      try {
+        const head = await fetch(targetUrl, { method: 'HEAD', headers: baseHeaders })
+        if (!head.ok) throw new Error('head_not_ok')
+      } catch {
+        // fallback to zip candidates
+        const cands = pickZipCandidates(file_url)
+        for (const c of cands) {
+          try {
+            const head = await fetch(c, { method: 'HEAD', headers: baseHeaders })
+            if (head.ok) { targetUrl = c; break }
+            const get = await fetch(c, { method: 'GET', headers: baseHeaders })
+            if (get.ok) { targetUrl = c; break }
+          } catch {}
+        }
+      }
+      const isZip = /\.zip(\?|$)/i.test(targetUrl)
+      const ext = (new URL(file_url).pathname.split('.').pop() || 'glb').toLowerCase()
+      const filename = isZip ? 'file.zip' : `file.${ext}`
+      const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename })
+      const ctype = isZip ? 'application/zip' : (ext === 'glb' ? 'model/gltf-binary' : undefined)
+      await storage.downloadAndUpload({ url: targetUrl, key, disposition: 'attachment', headers: baseHeaders, contentType: ctype })
       file_key_full = key
     }
 

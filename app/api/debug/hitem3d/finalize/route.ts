@@ -45,20 +45,61 @@ export async function GET(req: Request) {
     // cover
     let cover_key: string | undefined
     if (cover_url) {
-      const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
-      const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `cover.${ext}` })
-      const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
-      await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers: baseHeaders(), contentType: ctypeMap[ext] })
-      cover_key = key
+      try {
+        const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
+        const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `cover.${ext}` })
+        const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
+        await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers: baseHeaders(), contentType: ctypeMap[ext] })
+        cover_key = key
+      } catch {}
     }
 
-    // file
+    // file with fallback to zip candidates
     let file_key_full: string | undefined
     if (file_url) {
+      const pickZipCandidates = (u: string): string[] => {
+        try {
+          const url = new URL(u)
+          const segs = url.pathname.split('/')
+          const last = segs[segs.length - 1]
+          if (!last.includes('.')) return []
+          const known = new Set(['zip', 'obj', 'glb', 'stl', 'fbx'])
+          let name = last
+          for (let i = 0; i < 2; i++) {
+            const idx = name.lastIndexOf('.')
+            if (idx === -1) break
+            const ext = name.substring(idx + 1).toLowerCase()
+            if (known.has(ext)) name = name.substring(0, idx); else break
+          }
+          const dir = segs.slice(0, -1).join('/')
+          const z1 = new URL(url.toString()); z1.pathname = `${dir}/${name}.obj.zip`
+          const z2 = new URL(url.toString()); z2.pathname = `${dir}/${name}.zip`
+          const out = [z1.toString()]
+          if (z2.toString() !== z1.toString()) out.push(z2.toString())
+          return out
+        } catch { return [] }
+      }
+      let targetUrl = file_url
+      try {
+        const head = await fetch(targetUrl, { method: 'HEAD', headers: baseHeaders() })
+        if (!head.ok) throw new Error('head_not_ok')
+      } catch {
+        const cands = pickZipCandidates(file_url)
+        for (const c of cands) {
+          try {
+            const head = await fetch(c, { method: 'HEAD', headers: baseHeaders() })
+            if (head.ok) { targetUrl = c; break }
+            const get = await fetch(c, { method: 'GET', headers: baseHeaders() })
+            if (get.ok) { targetUrl = c; break }
+          } catch {}
+        }
+      }
+      const isZip = /\.zip(\?|$)/i.test(targetUrl)
       const ext = (new URL(file_url).pathname.split('.').pop() || 'glb').toLowerCase()
-      const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `file.${ext}` })
-      const ctype = ext === 'glb' ? 'model/gltf-binary' : undefined
-      await storage.downloadAndUpload({ url: file_url, key, disposition: 'attachment', headers: baseHeaders(), contentType: ctype })
+      const filename = isZip ? 'file.zip' : `file.${ext}`
+      const key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename })
+      const ctype = isZip ? 'application/zip' : (ext === 'glb' ? 'model/gltf-binary' : undefined)
+      await storage.downloadAndUpload({ url: targetUrl, key, disposition: 'attachment', headers: baseHeaders(), contentType: ctype })
       file_key_full = key
     }
 
@@ -100,4 +141,3 @@ export async function GET(req: Request) {
     return Response.json({ code: -1, message: e?.message || 'debug finalize failed' }, { status: 500 })
   }
 }
-

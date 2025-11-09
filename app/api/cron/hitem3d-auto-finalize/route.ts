@@ -43,18 +43,20 @@ export async function GET(req: Request) {
 
         let cover_key: string | undefined
         if (cover_url) {
-          const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
-          const key = buildAssetKey({ user_uuid, asset_uuid, filename: `cover.${ext}` })
-          const headers: Record<string, string> = {}
-          if (process.env.HITEM3D_REFERER) {
-            headers['Referer'] = process.env.HITEM3D_REFERER
-            headers['Origin'] = process.env.HITEM3D_REFERER
-          }
-          headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
-          headers['Accept'] = '*/*'
-          headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
-          await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers })
-          cover_key = key
+          try {
+            const ext = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
+            const key = buildAssetKey({ user_uuid, asset_uuid, filename: `cover.${ext}` })
+            const headers: Record<string, string> = {}
+            if (process.env.HITEM3D_REFERER) {
+              headers['Referer'] = process.env.HITEM3D_REFERER
+              headers['Origin'] = process.env.HITEM3D_REFERER
+            }
+            headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+            headers['Accept'] = '*/*'
+            headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
+            await storage.downloadAndUpload({ url: cover_url, key, disposition: 'inline', headers })
+            cover_key = key
+          } catch {}
         }
 
         let file_key_full: string | undefined
