@@ -16,6 +16,8 @@ export interface User {
   is_affiliate?: boolean;
   password_hash?: string;
   password_salt?: string;
+  // Computed on server for client-side convenience
+  is_admin?: boolean;
 }
 
 export interface UserCredits {

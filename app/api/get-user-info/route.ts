@@ -15,7 +15,16 @@ export async function POST(req: Request) {
       return respErr("user not exist");
     }
 
-    return respData(user);
+    // Determine admin flag from environment variable ADMIN_EMAILS
+    // Only used for UI convenience; server routes enforce admin separately.
+    const admins = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const is_admin = !!user.email && admins.includes(user.email);
+
+    return respData({ ...user, is_admin });
   } catch (e) {
     console.log("get user info failed: ", e);
     return respErr("get user info failed");
