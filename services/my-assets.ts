@@ -1,6 +1,7 @@
 import { listGenerationTasks } from '@/models/generation-task'
 import { listAssetsByUser } from '@/models/asset'
 import { listPublicationsByUser } from '@/models/publication'
+import { newStorage } from '@/lib/storage'
 
 export type TaskOverview = {
   task_id: string
@@ -21,14 +22,6 @@ export type AssetOverview = {
   cover_url?: string
   is_public: boolean
   slug?: string | null
-}
-
-function buildCoverUrl(cover_key?: string | null): string | undefined {
-  if (!cover_key) return undefined
-  const domain = (process.env.STORAGE_DOMAIN || '').replace(/\/$/, '')
-  if (!domain) return undefined
-  const key = cover_key.replace(/^\/+/, '')
-  return `${domain}/${key}`
 }
 
 export async function getMyAssetsOverview(user_uuid: string, page = 1, limit = 50): Promise<{
@@ -68,19 +61,44 @@ export async function getMyAssetsOverview(user_uuid: string, page = 1, limit = 5
     has_asset: assetByTaskId.has(t.task_id),
   }))
 
-  const assetsDto: AssetOverview[] = (assets || []).map((a: any) => {
+  const buildCoverUrl = (() => {
+    let storage: ReturnType<typeof newStorage> | null = null
+
+    return async (cover_key?: string | null): Promise<string | undefined> => {
+      if (!cover_key) return undefined
+      const domain = (process.env.STORAGE_DOMAIN || '').replace(/\/$/, '')
+      const key = cover_key.replace(/^\/+/, '')
+      if (domain) {
+        return `${domain}/${key}`
+      }
+      try {
+        if (!storage) storage = newStorage()
+        const filename = encodeURIComponent(key.split('/').pop() || 'cover.webp')
+        const { url } = await storage.getSignedUrl({
+          key,
+          responseDisposition: `inline; filename=${filename}`,
+        })
+        return url
+      } catch {
+        return undefined
+      }
+    }
+  })()
+
+  const assetsDto: AssetOverview[] = []
+  for (const a of assets || []) {
     const pub = publishedByAsset.get(a.uuid)
-    return {
+    const cover_url = await buildCoverUrl(a.cover_key)
+    assetsDto.push({
       uuid: a.uuid,
       task_id: a.task_id,
       title: a.title,
       created_at: a.created_at,
-      cover_url: buildCoverUrl(a.cover_key),
+      cover_url,
       is_public: !!pub && pub.status === 'online',
       slug: pub?.slug,
-    }
-  })
+    })
+  }
 
   return { tasks: tasksDto, assets: assetsDto }
 }
-

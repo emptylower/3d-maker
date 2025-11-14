@@ -38,5 +38,5 @@ export default function AssetAutoPreviewOBJ({ assetUuid }: { assetUuid: string }
   if (loading) return <div className="text-sm text-muted-foreground">加载预览中…</div>
   if (err) return <div className="text-sm text-muted-foreground">{err}</div>
   if (!files) return null
-  return <ViewerOBJ files={files} debug={debug} />
+  return <ViewerOBJ assetId={assetUuid} files={files} debug={debug} />
 }

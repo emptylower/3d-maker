@@ -3,6 +3,35 @@ import React, { useEffect, useRef, useState } from 'react'
 
 type FileItem = { name: string; url: string }
 
+type CachedModel = {
+  object: any
+  box: any
+  scale: number
+  createdAt: number
+}
+
+const modelCache = new Map<string, CachedModel>()
+const MAX_CACHE_ITEMS = 5
+
+function cacheModel(assetId: string, object: any, box: any, scale: number) {
+  if (!assetId) return
+  const cloneObj = object.clone(true)
+  const cloneBox = box.clone()
+  modelCache.set(assetId, { object: cloneObj, box: cloneBox, scale, createdAt: Date.now() })
+  if (modelCache.size > MAX_CACHE_ITEMS) {
+    const entries = Array.from(modelCache.entries()).sort((a, b) => a[1].createdAt - b[1].createdAt)
+    while (entries.length > MAX_CACHE_ITEMS) {
+      const [key] = entries.shift()!
+      modelCache.delete(key)
+    }
+  }
+}
+
+function getCachedModel(assetId?: string | null): CachedModel | undefined {
+  if (!assetId) return undefined
+  return modelCache.get(assetId) || undefined
+}
+
 async function loadThreeModules(): Promise<any> {
   // Bundle via npm to avoid CDN/CSP issues
   const THREE = await import('three')
@@ -27,7 +56,17 @@ function basename(n: string) {
   return segs[segs.length - 1]
 }
 
-export default function ViewerOBJ({ files, height = 360, debug = false }: { files: FileItem[]; height?: number; debug?: boolean }) {
+export default function ViewerOBJ({
+  assetId,
+  files,
+  height = 360,
+  debug = false,
+}: {
+  assetId?: string
+  files: FileItem[]
+  height?: number
+  debug?: boolean
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('初始化…')
@@ -157,9 +196,23 @@ export default function ViewerOBJ({ files, height = 360, debug = false }: { file
           return out
         })
 
-        // Two-path load: try with MTL, but fallback to OBJ-only if it stalls > 2s
-        const objLoader = new OBJLoader(manager)
-        const loadWithMtl = async () => {
+        const cached = getCachedModel(assetId)
+
+        let root: any
+        let box: any
+        let scale = 1
+
+        if (cached) {
+          console.log('[OBJ] using cached model for asset:', assetId)
+          root = cached.object.clone(true)
+          box = cached.box.clone()
+          scale = cached.scale
+          scene.add(root)
+          targetRef.current = Math.max(targetRef.current, 98)
+        } else {
+          // Two-path load: try with MTL, but fallback to OBJ-only if it stalls > 2s
+          const objLoader = new OBJLoader(manager)
+          const loadWithMtl = async () => {
           let materials: any = null
           if (mtl) {
             console.log('[OBJ] loading MTL:', mtl.url)
@@ -196,8 +249,8 @@ export default function ViewerOBJ({ files, height = 360, debug = false }: { file
             }, (e: any) => reject(e))
           })
           return g
-        }
-        const loadObjOnly = async () => {
+          }
+          const loadObjOnly = async () => {
           console.log('[OBJ] fallback: loading OBJ only')
           const g: any = await new Promise((resolve, reject) => {
             objLoader.load(obj.url, (gg: any) => resolve(gg), (ev: any) => {
@@ -209,65 +262,70 @@ export default function ViewerOBJ({ files, height = 360, debug = false }: { file
             }, (e: any) => reject(e))
           })
           return g
-        }
-        const timeout = new Promise((resolve) => setTimeout(() => resolve('TIMEOUT'), 2000))
-        let root: any
-        try {
-          const raced: any = await Promise.race([loadWithMtl(), timeout])
-          if (raced === 'TIMEOUT') {
-            root = await loadObjOnly()
-          } else {
-            root = raced
           }
-        } catch (e) {
-          console.warn('[OBJ] with MTL failed, retrying OBJ only:', e)
-          root = await loadObjOnly()
-        }
+          const timeout = new Promise((resolve) => setTimeout(() => resolve('TIMEOUT'), 2000))
+          try {
+            const raced: any = await Promise.race([loadWithMtl(), timeout])
+            if (raced === 'TIMEOUT') {
+              root = await loadObjOnly()
+            } else {
+              root = raced
+            }
+          } catch (e) {
+            console.warn('[OBJ] with MTL failed, retrying OBJ only:', e)
+            root = await loadObjOnly()
+          }
 
-        // Normalize scale and center
-        root.traverse((c: any) => {
-          if (c.isMesh) {
-            c.castShadow = true; c.receiveShadow = true
-            if (!c.material) {
-              c.material = new (THREE as any).MeshStandardMaterial({ color: 0xdddddd })
+          // Normalize scale and center
+          root.traverse((c: any) => {
+            if (c.isMesh) {
+              c.castShadow = true; c.receiveShadow = true
+              if (!c.material) {
+                c.material = new (THREE as any).MeshStandardMaterial({ color: 0xdddddd })
+              }
+            }
+          })
+          box = new THREE.Box3().setFromObject(root)
+          const center = new THREE.Vector3(); box.getCenter(center)
+          const size = new THREE.Vector3(); box.getSize(size)
+          const maxDim = Math.max(size.x, size.y, size.z) || 1
+          scale = 1.0 / maxDim
+          // Move model to origin and uniform scale
+          root.position.sub(center)
+          root.scale.setScalar(scale)
+          scene.add(root)
+          // Fallback: if no texture map was applied via MTL, apply the first image to all meshes
+          let hasTextureMap = false
+          root.traverse((c: any) => {
+            if (c.isMesh) {
+              const mats = Array.isArray(c.material) ? c.material : [c.material]
+              if (mats.some((m: any) => m && m.map)) hasTextureMap = true
+            }
+          })
+          if (!hasTextureMap) {
+            const texFile = files.find(f => /\.(png|jpe?g|webp)$/i.test(f.name))
+            if (texFile) {
+              try {
+                const tLoader = new THREE.TextureLoader(manager)
+                await new Promise<void>((resolve) => {
+                  tLoader.load(texFile.url, (tex: any) => {
+                    try {
+                      root.traverse((c: any) => {
+                        if (c.isMesh) {
+                          const mats = Array.isArray(c.material) ? c.material : [c.material]
+                          for (const m of mats) { if (m) { m.map = tex; m.needsUpdate = true } }
+                        }
+                      })
+                    } catch {}
+                    resolve()
+                  }, undefined, () => resolve())
+                })
+              } catch {}
             }
           }
-        })
-        const box = new THREE.Box3().setFromObject(root)
-        const center = new THREE.Vector3(); box.getCenter(center)
-        const size = new THREE.Vector3(); box.getSize(size)
-        const maxDim = Math.max(size.x, size.y, size.z) || 1
-        const scale = 1.0 / maxDim
-        // Move model to origin and uniform scale
-        root.position.sub(center)
-        root.scale.setScalar(scale)
-        scene.add(root)
-        // Fallback: if no texture map was applied via MTL, apply the first image to all meshes
-        let hasTextureMap = false
-        root.traverse((c: any) => {
-          if (c.isMesh) {
-            const mats = Array.isArray(c.material) ? c.material : [c.material]
-            if (mats.some((m: any) => m && m.map)) hasTextureMap = true
-          }
-        })
-        if (!hasTextureMap) {
-          const texFile = files.find(f => /\.(png|jpe?g|webp)$/i.test(f.name))
-          if (texFile) {
+          if (assetId) {
             try {
-              const tLoader = new THREE.TextureLoader(manager)
-              await new Promise<void>((resolve) => {
-                tLoader.load(texFile.url, (tex: any) => {
-                  try {
-                    root.traverse((c: any) => {
-                      if (c.isMesh) {
-                        const mats = Array.isArray(c.material) ? c.material : [c.material]
-                        for (const m of mats) { if (m) { m.map = tex; m.needsUpdate = true } }
-                      }
-                    })
-                  } catch {}
-                  resolve()
-                }, undefined, () => resolve())
-              })
+              cacheModel(assetId, root, box, scale)
             } catch {}
           }
         }

@@ -4,12 +4,14 @@ vi.mock('@/services/user', () => ({ getUserUuid: vi.fn() }))
 vi.mock('@/models/generation-task', () => ({ listGenerationTasks: vi.fn() }))
 vi.mock('@/models/asset', () => ({ listAssetsByUser: vi.fn() }))
 vi.mock('@/models/publication', () => ({ listPublicationsByUser: vi.fn() }))
+vi.mock('@/lib/storage', () => ({ newStorage: vi.fn() }))
 
 import { GET } from '@/app/api/my-assets/overview/route'
 import { getUserUuid } from '@/services/user'
 import { listGenerationTasks } from '@/models/generation-task'
 import { listAssetsByUser } from '@/models/asset'
 import { listPublicationsByUser } from '@/models/publication'
+import { newStorage } from '@/lib/storage'
 
 describe('api/my-assets/overview route', () => {
   beforeEach(() => {
@@ -18,7 +20,8 @@ describe('api/my-assets/overview route', () => {
     ;(listGenerationTasks as any).mockReset()
     ;(listAssetsByUser as any).mockReset()
     ;(listPublicationsByUser as any).mockReset()
-    process.env.STORAGE_DOMAIN = 'https://cdn.example.com'
+    ;(newStorage as any).mockReset()
+    process.env.STORAGE_DOMAIN = ''
   })
 
   it('returns 401 when not logged in', async () => {
@@ -69,6 +72,13 @@ describe('api/my-assets/overview route', () => {
       },
     ])
 
+    ;(newStorage as any).mockReturnValue({
+      getSignedUrl: vi.fn(async ({ key }: { key: string }) => ({
+        url: `https://signed.example.com/${key}?token=abc`,
+        expiresIn: 300,
+      })),
+    })
+
     const res = await GET(new Request('http://test.local/api/my-assets/overview'))
     expect(res.status).toBe(200)
     const json: any = await res.json()
@@ -85,7 +95,7 @@ describe('api/my-assets/overview route', () => {
     expect(assets[0].uuid).toBe('asset-1')
     expect(assets[0].is_public).toBe(true)
     expect(assets[0].slug).toBe('my-asset')
-    expect(assets[0].cover_url).toBe('https://cdn.example.com/covers/cover-1.webp')
+    expect(assets[0].cover_url).toBe('https://signed.example.com/covers/cover-1.webp?token=abc')
   })
 
   it('assets without publication are not public', async () => {
@@ -112,4 +122,3 @@ describe('api/my-assets/overview route', () => {
     expect(assets[0].is_public).toBe(false)
   })
 })
-
