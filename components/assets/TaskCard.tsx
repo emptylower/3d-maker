@@ -200,7 +200,7 @@ export function TaskCard({ task, onAssetReady, disableAutoPolling = false }: Tas
             <span>{progressLabel}</span>
             <Button
               variant="ghost"
-              size="xs"
+              size="sm"
               className="h-6 px-2 text-xs"
               onClick={refreshOnce}
               disabled={loading}
