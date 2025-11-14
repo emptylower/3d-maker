@@ -346,7 +346,6 @@ export default function ViewerOBJ({
         added = true
         // prevent late onLoad from overriding status
         manager.onLoad = () => {}
-        setStatus(`就绪：尺寸 ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`)
         try {
           const box2 = new THREE.Box3().setFromObject(root)
           const size2 = new THREE.Vector3(); box2.getSize(size2)
