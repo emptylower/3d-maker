@@ -34,7 +34,7 @@ describe('api/hitem3d/callback route', () => {
       refunded: false,
     })
     const downloadAndUpload = vi.fn(async () => ({}))
-    ;(newStorage as any).mockReturnValue({ downloadAndUpload })
+    ;(newStorage as any).mockReturnValue({ downloadAndUpload, listObjects: vi.fn(async () => []) })
 
     const body = {
       code: 200,
@@ -73,6 +73,43 @@ describe('api/hitem3d/callback route', () => {
     expect(increaseCredits as any).not.toHaveBeenCalled()
   })
 
+  it('falls back to input cover when vendor cover missing', async () => {
+    ;(findGenerationTaskByTaskId as any).mockResolvedValue({
+      task_id: 't-3',
+      user_uuid: 'u-2',
+      state: 'processing',
+      credits_charged: 10,
+      refunded: false,
+    })
+    const downloadAndUpload = vi.fn(async () => ({}))
+    const listObjects = vi.fn(async () => ['assets/u-2/input-covers/t-3.png'])
+    ;(newStorage as any).mockReturnValue({ downloadAndUpload, listObjects })
+
+    const body = {
+      code: 200,
+      data: {
+        task_id: 't-3',
+        state: 'success',
+        // no cover_url provided by vendor
+        url: 'https://vendor.example.com/files/2.glb',
+      },
+      msg: 'success',
+    }
+    const req = new Request('http://test.local/api/hitem3d/callback', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    const res = await POST(req as any)
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.code).toBe(0)
+
+    // file should still be downloaded
+    expect(downloadAndUpload).toHaveBeenCalledTimes(1)
+    const asset = (insertAsset as any).mock.calls[0][0]
+    expect(asset.cover_key).toBe('assets/u-2/input-covers/t-3.png')
+  })
+
   it('handles failed: refunds credits once and marks task failed idempotently', async () => {
     ;(findGenerationTaskByTaskId as any).mockResolvedValue({
       task_id: 't-2',
@@ -104,4 +141,3 @@ describe('api/hitem3d/callback route', () => {
     expect((increaseCredits as any).mock.calls.length).toBe(1)
   })
 })
-

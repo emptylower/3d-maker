@@ -3,6 +3,7 @@ import { getUserCredits, decreaseCredits, CreditsTransType } from '@/services/cr
 import { resolveCreditsCost } from '@/lib/credits/cost'
 import { submitTask, Hitem3DClientError } from '@/services/hitem3d'
 import { insertGenerationTask } from '@/models/generation-task'
+import { newStorage } from '@/lib/storage'
 
 type RequestType = 1 | 2 | 3
 type ModelType = 'hitem3dv1' | 'hitem3dv1.5' | 'scene-portraitv1.5'
@@ -23,6 +24,44 @@ function isValidResolution(r: string): r is Resolution {
 
 function isValidFormat(n: number): n is FileFormat {
   return n === 1 || n === 2 || n === 3 || n === 4
+}
+
+type CoverPayload = {
+  filename: string
+  content: Uint8Array
+  contentType?: string
+}
+
+async function saveInputCover(user_uuid: string, task_id: string, cover?: CoverPayload | null) {
+  try {
+    if (!cover || !cover.content || !task_id || !user_uuid) return
+    const storage = newStorage()
+    const lowerName = (cover.filename || '').toLowerCase()
+    let ext =
+      lowerName.endsWith('.png') ? 'png' :
+      lowerName.endsWith('.webp') ? 'webp' :
+      lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') ? 'jpg' :
+      (cover.contentType || '').toLowerCase().includes('png') ? 'png' :
+      (cover.contentType || '').toLowerCase().includes('webp') ? 'webp' :
+      'jpg'
+    const key = `assets/${user_uuid}/input-covers/${task_id}.${ext}`
+    const body = Buffer.from(cover.content)
+    const contentType =
+      cover.contentType ||
+      (ext === 'png'
+        ? 'image/png'
+        : ext === 'webp'
+        ? 'image/webp'
+        : 'image/jpeg')
+    await storage.uploadFile({
+      body,
+      key,
+      contentType,
+      disposition: 'inline',
+    })
+  } catch (e) {
+    console.error('save input cover failed:', e)
+  }
 }
 
 export async function POST(req: Request) {
@@ -149,15 +188,34 @@ export async function POST(req: Request) {
       format: (format ?? 1) as FileFormat,
       mesh_url,
     }
+
+    let coverCandidate: CoverPayload | null = null
     if (hasImages) {
-      svcInput.images = await Promise.all(images.map(toFilePayload))
+      const svcImages = await Promise.all(images.map(toFilePayload))
+      svcInput.images = svcImages
+      if (svcImages.length > 0) {
+        const c = svcImages[0]
+        coverCandidate = { filename: c.filename, content: c.content, contentType: c.contentType }
+      }
     } else if (hasMulti) {
-      svcInput.multi_images = await Promise.all(multi_images.map(toFilePayload))
+      const svcMulti = await Promise.all(multi_images.map(toFilePayload))
+      svcInput.multi_images = svcMulti
+      if (svcMulti.length > 0) {
+        const c = svcMulti[0]
+        coverCandidate = { filename: c.filename, content: c.content, contentType: c.contentType }
+      }
     }
 
     // 1B) submit to hitem3D first
     const submitRes = await submitTask(svcInput)
     const task_id = submitRes.task_id
+
+    // save input cover candidate for later callback fallback
+    if (coverCandidate) {
+      saveInputCover(user_uuid, task_id, coverCandidate).catch((e) => {
+        console.error('async save input cover failed:', e)
+      })
+    }
 
     // then decrease credits (admin bypass)
     if (!isAdmin && credits_cost > 0) {

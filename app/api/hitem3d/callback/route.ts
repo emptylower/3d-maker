@@ -52,18 +52,46 @@ export async function POST(req: Request) {
       // cover
       let cover_key: string | undefined
       if (cover_url) {
-        const coverExt = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
-        cover_key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `cover.${coverExt}` })
-        const headers: Record<string, string> = {}
-        if (process.env.HITEM3D_REFERER) {
-          headers['Referer'] = process.env.HITEM3D_REFERER
-          headers['Origin'] = process.env.HITEM3D_REFERER
+        try {
+          const coverExt = (new URL(cover_url).pathname.split('.').pop() || 'webp').toLowerCase()
+          cover_key = buildAssetKey({ user_uuid: task.user_uuid, asset_uuid, filename: `cover.${coverExt}` })
+          const headers: Record<string, string> = {}
+          if (process.env.HITEM3D_REFERER) {
+            headers['Referer'] = process.env.HITEM3D_REFERER
+            headers['Origin'] = process.env.HITEM3D_REFERER
+          }
+          headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
+          headers['Accept'] = '*/*'
+          headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
+          const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
+          await storage.downloadAndUpload({
+            url: cover_url,
+            key: cover_key,
+            disposition: 'inline',
+            headers,
+            contentType: ctypeMap[coverExt],
+          })
+        } catch (e) {
+          console.error('vendor cover download failed:', e)
+          cover_key = undefined
         }
-        headers['User-Agent'] = process.env.HITEM3D_UA || 'Mozilla/5.0'
-        headers['Accept'] = '*/*'
-        headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
-        const ctypeMap: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
-        await storage.downloadAndUpload({ url: cover_url, key: cover_key, disposition: 'inline', headers, contentType: ctypeMap[coverExt] })
+      }
+
+      // Fallback: no vendor cover, try user input cover stored by submit route
+      if (!cover_key) {
+        try {
+          const prefix = `assets/${task.user_uuid}/input-covers/${task.task_id}`
+          const keys = await storage.listObjects({ prefix })
+          const imageKey =
+            (keys || []).find((k) =>
+              /\.(png|jpe?g|webp)$/i.test(k),
+            ) || null
+          if (imageKey) {
+            cover_key = imageKey
+          }
+        } catch (e) {
+          console.error('input cover fallback failed:', e)
+        }
       }
 
       // file

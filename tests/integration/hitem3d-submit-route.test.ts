@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // mocks must be declared before importing route
-vi.mock('@/services/user', () => ({ getUserUuid: vi.fn() }))
+vi.mock('@/services/user', () => ({ getUserUuid: vi.fn(), getUserInfo: vi.fn(async () => ({ email: 'user@test.local' })) }))
 vi.mock('@/services/credit', () => ({
   getUserCredits: vi.fn(),
   decreaseCredits: vi.fn(),
@@ -9,12 +9,14 @@ vi.mock('@/services/credit', () => ({
 }))
 vi.mock('@/services/hitem3d', () => ({ submitTask: vi.fn() }))
 vi.mock('@/models/generation-task', () => ({ insertGenerationTask: vi.fn() }))
+vi.mock('@/lib/storage', () => ({ newStorage: vi.fn() }))
 
 import { POST } from '@/app/api/hitem3d/submit/route'
 import { getUserUuid } from '@/services/user'
 import { getUserCredits, decreaseCredits } from '@/services/credit'
 import { submitTask } from '@/services/hitem3d'
 import { insertGenerationTask } from '@/models/generation-task'
+import { newStorage } from '@/lib/storage'
 
 describe('api/hitem3d/submit route', () => {
   beforeEach(() => {
@@ -24,6 +26,7 @@ describe('api/hitem3d/submit route', () => {
     ;(decreaseCredits as any).mockReset()
     ;(submitTask as any).mockReset()
     ;(insertGenerationTask as any).mockReset()
+    ;(newStorage as any).mockReset()
   })
 
   it('returns 401 when not logged in', async () => {
@@ -78,6 +81,9 @@ describe('api/hitem3d/submit route', () => {
     ;(getUserCredits as any).mockResolvedValue({ left_credits: 100 })
     ;(submitTask as any).mockResolvedValue({ task_id: 'task-123' })
 
+    const uploadFile = vi.fn(async () => ({}))
+    ;(newStorage as any).mockReturnValue({ uploadFile })
+
     const fd = new FormData()
     fd.append('request_type', '3')
     fd.append('model', 'hitem3dv1')
@@ -107,6 +113,11 @@ describe('api/hitem3d/submit route', () => {
     expect(taskArg.resolution).toBe('512')
     expect(taskArg.state).toBe('created')
     expect(taskArg.credits_charged).toBe(15)
+
+    // input cover should be saved once using task_id
+    expect(uploadFile).toHaveBeenCalledTimes(1)
+    const uploadArgs = (uploadFile as any).mock.calls[0][0]
+    expect(uploadArgs.key).toContain('assets/u-1/input-covers/task-123.')
   })
 
   it('forwards format=2 when provided', async () => {
