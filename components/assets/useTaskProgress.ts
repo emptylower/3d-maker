@@ -116,11 +116,10 @@ export function useTaskProgress(options: UseTaskProgressOptions): UseTaskProgres
         if (uuid) {
           setAssetUuid(uuid)
           onAssetReady?.({ uuid, task_id: taskId, cover_url: vendorCoverUrl || undefined })
-          return
         }
       }
 
-      if (!latestAssetUuidRef.current && effectiveState === 'success') {
+      if (effectiveState === 'success') {
         const finalizeRes = await fetch('/api/hitem3d/finalize', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -157,8 +156,6 @@ export function useTaskProgress(options: UseTaskProgressOptions): UseTaskProgres
       const now = Date.now()
       if (now - createdMs > maxSpanMs) return
       if (latestStateRef.current === 'failed') return
-      if (latestStateRef.current === 'success' && latestAssetUuidRef.current) return
-
       await refreshOnce()
       if (cancelled) return
       timer = window.setTimeout(loop, 60 * 1000)
@@ -181,4 +178,3 @@ export function useTaskProgress(options: UseTaskProgressOptions): UseTaskProgres
     refreshOnce,
   }
 }
-
