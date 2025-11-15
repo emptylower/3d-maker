@@ -3,7 +3,7 @@ import { Footer as FooterType } from "@/types/blocks/footer";
 export default function Footer({ footer }: { footer: FooterType }) {
   if (footer.disabled) return null;
 
-  const yearText = footer.copyright || "© 2025 • AI3DMARK 保留所有权利。";
+  const yearText = footer.copyright || "© 2025 • xyris labs limited 保留所有权利。";
   const agreements = footer.agreement?.items?.length
     ? footer.agreement.items
     : [

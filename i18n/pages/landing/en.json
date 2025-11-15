@@ -584,15 +584,15 @@
   "footer": {
     "name": "footer",
     "brand": {
-      "title": "ShipAny",
-      "description": "ShipAny is a NextJS boilerplate for building AI SaaS startups. Ship Fast with a variety of templates and components.",
+      "title": "AI3DMARK",
+      "description": "AI3DMARK is an AI 3D generation and asset management platform for creators.",
       "logo": {
         "src": "/logo.png",
-        "alt": "ShipAny"
+        "alt": "AI3DMARK"
       },
       "url": "/"
     },
-    "copyright": "© 2025 • ShipAny All rights reserved.",
+    "copyright": "© 2025 • xyris labs limited All rights reserved.",
     "nav": {
       "items": [
         {

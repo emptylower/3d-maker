@@ -556,15 +556,15 @@
   "footer": {
     "name": "footer",
     "brand": {
-      "title": "ShipAny",
-      "description": "ShipAny 是一个用于构建 AI SaaS 创业项目的 NextJS 模板。通过丰富的模板和组件快速启动。",
+      "title": "AI3DMARK",
+      "description": "AI3DMARK 是一个 AI 3D 生成与资产管理平台，帮助创作者在云端管理和分享 3D 作品。",
       "logo": {
         "src": "/logo.png",
-        "alt": "ShipAny"
+        "alt": "AI3DMARK"
       },
       "url": "/"
     },
-    "copyright": "© 2025 • ShipAny 保留所有权利。",
+    "copyright": "© 2025 • xyris labs limited 保留所有权利。",
     "nav": {
       "items": [
         {
