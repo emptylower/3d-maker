@@ -121,4 +121,39 @@ describe('api/my-assets/overview route', () => {
     expect(assets[0].uuid).toBe('asset-2')
     expect(assets[0].is_public).toBe(false)
   })
+
+  it('deduplicates tasks by task_id defensively', async () => {
+    ;(getUserUuid as any).mockResolvedValue('user-1')
+    ;(listGenerationTasks as any).mockResolvedValue([
+      {
+        task_id: 'task-dup',
+        user_uuid: 'user-1',
+        state: 'processing',
+        model_version: 'hitem3dv1.5',
+        resolution: '1536',
+        request_type: 1,
+        created_at: '2025-01-01T00:00:00.000Z',
+        updated_at: '2025-01-01T00:10:00.000Z',
+      },
+      {
+        task_id: 'task-dup',
+        user_uuid: 'user-1',
+        state: 'queueing',
+        model_version: 'hitem3dv1',
+        resolution: '1024',
+        request_type: 1,
+        created_at: '2025-01-01T00:05:00.000Z',
+        updated_at: '2025-01-01T00:15:00.000Z',
+      },
+    ])
+    ;(listAssetsByUser as any).mockResolvedValue([])
+    ;(listPublicationsByUser as any).mockResolvedValue([])
+
+    const res = await GET(new Request('http://test.local/api/my-assets/overview'))
+    expect(res.status).toBe(200)
+    const json: any = await res.json()
+    const tasks = json.data.tasks
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0].task_id).toBe('task-dup')
+  })
 })

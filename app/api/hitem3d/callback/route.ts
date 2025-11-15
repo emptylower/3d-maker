@@ -1,7 +1,7 @@
 import { newStorage } from '@/lib/storage'
 import { buildAssetKey } from '@/lib/storage-key'
 import { getUuid } from '@/lib/hash'
-import { insertAsset } from '@/models/asset'
+import { insertAsset, findAssetByTaskId, updateAssetByUuid } from '@/models/asset'
 import { findGenerationTaskByTaskId, updateGenerationTask } from '@/models/generation-task'
 import { upsertRendition } from '@/models/asset-rendition'
 import { increaseCredits, CreditsTransType } from '@/services/credit'
@@ -47,7 +47,8 @@ export async function POST(req: Request) {
 
       // download and upload to storage
       const storage = newStorage()
-      const asset_uuid = getUuid()
+      const existingAsset = await findAssetByTaskId(task.task_id)
+      const asset_uuid = existingAsset?.uuid || getUuid()
 
       // cover
       let cover_key: string | undefined
@@ -111,17 +112,25 @@ export async function POST(req: Request) {
         await storage.downloadAndUpload({ url: file_url, key: file_key_full, disposition: 'attachment', headers, contentType: ctype })
       }
 
-      // create asset record (mocked in tests)
-      await insertAsset({
-        uuid: asset_uuid,
-        user_uuid: task.user_uuid,
-        task_id: task.task_id,
+      const basePatch: any = {
         status: 'active',
         cover_key,
         file_key_full,
         file_format: file_key_full ? (file_key_full.split('.').pop() || '') : undefined,
-        created_at: new Date().toISOString(),
-      })
+        task_id: task.task_id,
+        user_uuid: task.user_uuid,
+        updated_at: new Date().toISOString(),
+      }
+
+      if (existingAsset) {
+        await updateAssetByUuid(existingAsset.uuid, basePatch)
+      } else {
+        await insertAsset({
+          uuid: asset_uuid,
+          ...basePatch,
+          created_at: new Date().toISOString(),
+        })
+      }
 
       await updateGenerationTask(task_id, {
         state: 'success',

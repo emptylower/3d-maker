@@ -4,14 +4,18 @@ vi.mock('@/models/generation-task', () => ({
   findGenerationTaskByTaskId: vi.fn(),
   updateGenerationTask: vi.fn(),
 }))
-vi.mock('@/models/asset', () => ({ insertAsset: vi.fn() }))
+vi.mock('@/models/asset', () => ({
+  insertAsset: vi.fn(),
+  findAssetByTaskId: vi.fn(),
+  updateAssetByUuid: vi.fn(),
+}))
 vi.mock('@/lib/storage', () => ({ newStorage: vi.fn() }))
 vi.mock('@/lib/hash', () => ({ getUuid: vi.fn(() => 'asset-1') }))
 vi.mock('@/services/credit', () => ({ increaseCredits: vi.fn(), CreditsTransType: { SystemAdd: 'system_add' } }))
 
 import { POST } from '@/app/api/hitem3d/callback/route'
 import { findGenerationTaskByTaskId, updateGenerationTask } from '@/models/generation-task'
-import { insertAsset } from '@/models/asset'
+import { insertAsset, findAssetByTaskId, updateAssetByUuid } from '@/models/asset'
 import { newStorage } from '@/lib/storage'
 import { increaseCredits } from '@/services/credit'
 
@@ -21,6 +25,8 @@ describe('api/hitem3d/callback route', () => {
     ;(findGenerationTaskByTaskId as any).mockReset()
     ;(updateGenerationTask as any).mockReset()
     ;(insertAsset as any).mockReset()
+    ;(findAssetByTaskId as any).mockReset()
+    ;(updateAssetByUuid as any).mockReset()
     ;(newStorage as any).mockReset()
     ;(increaseCredits as any).mockReset()
   })
@@ -33,6 +39,7 @@ describe('api/hitem3d/callback route', () => {
       credits_charged: 15,
       refunded: false,
     })
+    ;(findAssetByTaskId as any).mockResolvedValue(null)
     const downloadAndUpload = vi.fn(async () => ({}))
     ;(newStorage as any).mockReturnValue({ downloadAndUpload, listObjects: vi.fn(async () => []) })
 
@@ -81,6 +88,7 @@ describe('api/hitem3d/callback route', () => {
       credits_charged: 10,
       refunded: false,
     })
+    ;(findAssetByTaskId as any).mockResolvedValue(null)
     const downloadAndUpload = vi.fn(async () => ({}))
     const listObjects = vi.fn(async () => ['assets/u-2/input-covers/t-3.png'])
     ;(newStorage as any).mockReturnValue({ downloadAndUpload, listObjects })

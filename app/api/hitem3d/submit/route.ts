@@ -3,6 +3,8 @@ import { getUserCredits, decreaseCredits, CreditsTransType } from '@/services/cr
 import { resolveCreditsCost } from '@/lib/credits/cost'
 import { submitTask, Hitem3DClientError } from '@/services/hitem3d'
 import { insertGenerationTask } from '@/models/generation-task'
+import { insertAsset } from '@/models/asset'
+import { getUuid } from '@/lib/hash'
 import { newStorage } from '@/lib/storage'
 
 type RequestType = 1 | 2 | 3
@@ -30,6 +32,7 @@ type CoverPayload = {
   filename: string
   content: Uint8Array
   contentType?: string
+  ext?: 'png' | 'webp' | 'jpg'
 }
 
 async function saveInputCover(user_uuid: string, task_id: string, cover?: CoverPayload | null) {
@@ -38,12 +41,13 @@ async function saveInputCover(user_uuid: string, task_id: string, cover?: CoverP
     const storage = newStorage()
     const lowerName = (cover.filename || '').toLowerCase()
     let ext =
-      lowerName.endsWith('.png') ? 'png' :
+      cover.ext ||
+      (lowerName.endsWith('.png') ? 'png' :
       lowerName.endsWith('.webp') ? 'webp' :
       lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') ? 'jpg' :
       (cover.contentType || '').toLowerCase().includes('png') ? 'png' :
       (cover.contentType || '').toLowerCase().includes('webp') ? 'webp' :
-      'jpg'
+      'jpg')
     const key = `assets/${user_uuid}/input-covers/${task_id}.${ext}`
     const body = Buffer.from(cover.content)
     const contentType =
@@ -190,25 +194,66 @@ export async function POST(req: Request) {
     }
 
     let coverCandidate: CoverPayload | null = null
+
+    const inferCoverExt = (filename?: string, contentType?: string): CoverPayload['ext'] => {
+      const lowerName = (filename || '').toLowerCase()
+      const ct = (contentType || '').toLowerCase()
+      if (lowerName.endsWith('.png') || ct.includes('png')) return 'png'
+      if (lowerName.endsWith('.webp') || ct.includes('webp')) return 'webp'
+      if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || ct.includes('jpeg') || ct.includes('jpg')) {
+        return 'jpg'
+      }
+      return 'jpg'
+    }
     if (hasImages) {
       const svcImages = await Promise.all(images.map(toFilePayload))
       svcInput.images = svcImages
       if (svcImages.length > 0) {
         const c = svcImages[0]
-        coverCandidate = { filename: c.filename, content: c.content, contentType: c.contentType }
+        coverCandidate = {
+          filename: c.filename,
+          content: c.content,
+          contentType: c.contentType,
+          ext: inferCoverExt(c.filename, c.contentType),
+        }
       }
     } else if (hasMulti) {
       const svcMulti = await Promise.all(multi_images.map(toFilePayload))
       svcInput.multi_images = svcMulti
       if (svcMulti.length > 0) {
         const c = svcMulti[0]
-        coverCandidate = { filename: c.filename, content: c.content, contentType: c.contentType }
+        coverCandidate = {
+          filename: c.filename,
+          content: c.content,
+          contentType: c.contentType,
+          ext: inferCoverExt(c.filename, c.contentType),
+        }
       }
     }
 
     // 1B) submit to hitem3D first
     const submitRes = await submitTask(svcInput)
     const task_id = submitRes.task_id
+
+    // Create a placeholder asset so that "我的资产"页面可以用单张资产卡片承载进度与最终预览。
+    try {
+      const asset_uuid = getUuid()
+      const placeholderCoverKey =
+        coverCandidate?.ext
+          ? `assets/${user_uuid}/input-covers/${task_id}.${coverCandidate.ext}`
+          : undefined
+      await insertAsset({
+        uuid: asset_uuid,
+        user_uuid,
+        task_id,
+        status: 'active',
+        cover_key: placeholderCoverKey,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as any)
+    } catch (e) {
+      console.error('insert asset placeholder failed:', e)
+    }
 
     // save input cover candidate for later callback fallback
     if (coverCandidate) {

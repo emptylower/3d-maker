@@ -9,6 +9,7 @@ vi.mock('@/services/credit', () => ({
 }))
 vi.mock('@/services/hitem3d', () => ({ submitTask: vi.fn() }))
 vi.mock('@/models/generation-task', () => ({ insertGenerationTask: vi.fn() }))
+vi.mock('@/models/asset', () => ({ insertAsset: vi.fn() }))
 vi.mock('@/lib/storage', () => ({ newStorage: vi.fn() }))
 
 import { POST } from '@/app/api/hitem3d/submit/route'
@@ -16,6 +17,7 @@ import { getUserUuid } from '@/services/user'
 import { getUserCredits, decreaseCredits } from '@/services/credit'
 import { submitTask } from '@/services/hitem3d'
 import { insertGenerationTask } from '@/models/generation-task'
+import { insertAsset } from '@/models/asset'
 import { newStorage } from '@/lib/storage'
 
 describe('api/hitem3d/submit route', () => {
@@ -26,6 +28,7 @@ describe('api/hitem3d/submit route', () => {
     ;(decreaseCredits as any).mockReset()
     ;(submitTask as any).mockReset()
     ;(insertGenerationTask as any).mockReset()
+    ;(insertAsset as any).mockReset()
     ;(newStorage as any).mockReset()
   })
 
@@ -118,6 +121,15 @@ describe('api/hitem3d/submit route', () => {
     expect(uploadFile).toHaveBeenCalledTimes(1)
     const uploadArgs = (uploadFile as any).mock.calls[0][0]
     expect(uploadArgs.key).toContain('assets/u-1/input-covers/task-123.')
+
+    // placeholder asset should be inserted once, linked to task_id
+    expect((insertAsset as any).mock.calls.length).toBe(1)
+    const assetArg = (insertAsset as any).mock.calls[0][0]
+    expect(assetArg.user_uuid).toBe('u-1')
+    expect(assetArg.task_id).toBe('task-123')
+    if (assetArg.cover_key) {
+      expect(assetArg.cover_key).toContain('assets/u-1/input-covers/task-123.')
+    }
   })
 
   it('forwards format=2 when provided', async () => {

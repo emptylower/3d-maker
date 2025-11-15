@@ -39,7 +39,7 @@ describe('MyAssetsClient', () => {
     },
   ]
 
-  it('renders tasks and assets in "全部" tab', () => {
+  it('renders assets (with progress when task exists) in \"全部\" tab', () => {
     render(
       <MyAssetsClient
         initialTasks={tasks as any}
@@ -51,11 +51,12 @@ describe('MyAssetsClient', () => {
     expect(
       screen.getByRole('heading', { name: '我的资产' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('生成中的模型')).toBeInTheDocument()
     expect(screen.getByText('已生成资产')).toBeInTheDocument()
 
-    expect(screen.getAllByTestId('task-card')).toHaveLength(1)
-    expect(screen.getAllByTestId('asset-card')).toHaveLength(2)
+    const assetCards = screen.getAllByTestId('asset-card')
+    expect(assetCards).toHaveLength(2)
+    // one of the asset cards should show progress text
+    expect(screen.getByText(/预计进度/)).toBeInTheDocument()
   })
 
   it('filters to only public assets in "公开的资产" tab', () => {

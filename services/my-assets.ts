@@ -28,16 +28,52 @@ export async function getMyAssetsOverview(user_uuid: string, page = 1, limit = 5
   tasks: TaskOverview[]
   assets: AssetOverview[]
 }> {
-  const [allTasks, assets, publications] = await Promise.all([
+  const [allTasks, rawAssets, publications] = await Promise.all([
     listGenerationTasks(page, limit),
     listAssetsByUser(user_uuid, page, limit),
     listPublicationsByUser(user_uuid, page, limit),
   ])
 
-  const tasks = (allTasks || []).filter((t: any) => t.user_uuid === user_uuid)
+  const tasksAllForUser = (allTasks || []).filter((t: any) => t.user_uuid === user_uuid)
+
+  // Deduplicate tasks defensively by task_id (should be UNIQUE at DB level,
+  // but this guards against historical data issues or inconsistent mocks).
+  const taskById = new Map<string, any>()
+  for (const t of tasksAllForUser) {
+    const id = t.task_id
+    if (!id) continue
+    const existing = taskById.get(id)
+    if (!existing) {
+      taskById.set(id, t)
+      continue
+    }
+    const existingUpdated = existing.updated_at || existing.created_at || ''
+    const currentUpdated = t.updated_at || t.created_at || ''
+    if (currentUpdated && currentUpdated > existingUpdated) {
+      taskById.set(id, t)
+    }
+  }
+  const tasks = Array.from(taskById.values())
 
   const assetByTaskId = new Map<string, any>()
-  for (const a of assets || []) {
+  // Deduplicate assets by uuid as well, to avoid rendering duplicate cards.
+  const assetByUuid = new Map<string, any>()
+  for (const a of rawAssets || []) {
+    if (!a.uuid) continue
+    const existing = assetByUuid.get(a.uuid)
+    if (!existing) {
+      assetByUuid.set(a.uuid, a)
+      continue
+    }
+    const existingCreated = existing.created_at || ''
+    const currentCreated = a.created_at || ''
+    if (currentCreated && currentCreated > existingCreated) {
+      assetByUuid.set(a.uuid, a)
+    }
+  }
+  const assets = Array.from(assetByUuid.values())
+
+  for (const a of assets) {
     if (a.task_id) {
       assetByTaskId.set(a.task_id, a)
     }

@@ -1,17 +1,49 @@
 "use client"
 
 import * as React from 'react'
-import type { AssetOverview } from '@/services/my-assets'
+import type { AssetOverview, TaskOverview } from '@/services/my-assets'
+import type { GenerationState } from '@/lib/progress'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ProgressFancy } from '@/components/ui/progress-fancy'
 import { cn } from '@/lib/utils'
+import { useTaskProgress } from '@/components/assets/useTaskProgress'
 
 type AssetCardProps = {
   asset: AssetOverview
+  task?: TaskOverview
+  disableProgressAutoPolling?: boolean
 }
 
-export function AssetCard({ asset }: AssetCardProps) {
+export function AssetCard({ asset, task, disableProgressAutoPolling = false }: AssetCardProps) {
   const created = asset.created_at ? new Date(asset.created_at) : null
+
+  const hasTask = !!task && !!task.task_id
+
+  const {
+    state,
+    progress,
+    loading,
+    error,
+    refreshOnce,
+  } = useTaskProgress({
+    taskId: hasTask ? task!.task_id : '',
+    initialState: hasTask ? (task!.state as GenerationState) : 'success',
+    createdAtIso: hasTask ? task!.created_at : asset.created_at,
+    updatedAtIso: hasTask ? task!.updated_at : undefined,
+    disableAutoPolling: disableProgressAutoPolling || !hasTask,
+  })
+
+  const showProgress =
+    hasTask && (state === 'created' || state === 'queueing' || state === 'processing')
+
+  const progressStatus: 'normal' | 'success' | 'failed' =
+    state === 'failed' ? 'failed' : state === 'success' ? 'success' : 'normal'
+
+  const progressLabel =
+    state === 'failed'
+      ? '生成失败，请重试或联系支持'
+      : `预计进度：${Math.round(progress)}%`
 
   return (
     <Card
@@ -54,6 +86,25 @@ export function AssetCard({ asset }: AssetCardProps) {
           </div>
         </div>
 
+        {showProgress && (
+          <div className="space-y-2 pt-1">
+            <ProgressFancy value={progress} status={progressStatus} />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{progressLabel}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={refreshOnce}
+                disabled={loading}
+              >
+                刷新状态
+              </Button>
+            </div>
+            {error && <div className="mt-1 text-xs text-red-400">{error}</div>}
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-2 pt-1">
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm" className="h-7 px-3 text-xs">
@@ -79,4 +130,3 @@ export function AssetCard({ asset }: AssetCardProps) {
     </Card>
   )
 }
-

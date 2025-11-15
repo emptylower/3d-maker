@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import type { TaskOverview, AssetOverview } from '@/services/my-assets'
-import { TaskCard } from '@/components/assets/TaskCard'
 import { AssetCard } from '@/components/assets/AssetCard'
 import { cn } from '@/lib/utils'
 
@@ -18,40 +17,40 @@ export default function MyAssetsClient({
   disableTaskAutoPolling = false,
 }: MyAssetsClientProps) {
   const [tab, setTab] = React.useState<'all' | 'public'>('all')
-  const [tasks, setTasks] = React.useState<TaskOverview[]>(() =>
-    (initialTasks || []).filter((t) => !t.has_asset),
-  )
-  const [assets, setAssets] = React.useState<AssetOverview[]>(() => initialAssets || [])
-
-  const handleAssetReady = React.useCallback(
-    (asset: { uuid: string; task_id?: string | null; cover_url?: string }) => {
-      setTasks((prev) =>
-        asset.task_id ? prev.filter((t) => t.task_id !== asset.task_id) : prev,
-      )
-      setAssets((prev) => {
-        if (prev.some((a) => a.uuid === asset.uuid)) return prev
-        const now = new Date().toISOString()
-        const placeholder: AssetOverview = {
-          uuid: asset.uuid,
-          task_id: asset.task_id ?? undefined,
-          title: '新生成资产',
-          cover_url: asset.cover_url,
-          created_at: now,
-          is_public: false,
-          slug: null,
-        }
-        return [placeholder, ...prev]
-      })
-    },
-    [],
-  )
+  const [tasks, setTasks] = React.useState<TaskOverview[]>(() => {
+    const seen = new Set<string>()
+    return (initialTasks || []).filter((t) => {
+      if (!t.task_id || seen.has(t.task_id)) return false
+      seen.add(t.task_id)
+      return !t.has_asset
+    })
+  })
+  const [assets] = React.useState<AssetOverview[]>(() => {
+    const seen = new Set<string>()
+    const deduped: AssetOverview[] = []
+    for (const a of initialAssets || []) {
+      if (!a.uuid || seen.has(a.uuid)) continue
+      seen.add(a.uuid)
+      deduped.push(a)
+    }
+    return deduped
+  })
 
   const publicAssets = React.useMemo(
     () => assets.filter((a) => a.is_public),
     [assets],
   )
 
-  const hasNothing = tasks.length === 0 && assets.length === 0
+  const hasNothing = assets.length === 0
+
+  const taskById = React.useMemo(() => {
+    const map = new Map<string, TaskOverview>()
+    for (const t of tasks) {
+      if (!t.task_id) continue
+      map.set(t.task_id, t)
+    }
+    return map
+  }, [tasks])
 
   return (
     <div className="space-y-6">
@@ -99,38 +98,25 @@ export default function MyAssetsClient({
       {!hasNothing && (
         <>
           {tab === 'all' && (
-            <div className="space-y-6">
-              {tasks.length > 0 && (
-                <section>
-                  <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-                    生成中的模型
-                  </h2>
-                  <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                    {tasks.map((t) => (
-                      <TaskCard
-                        key={t.task_id}
-                        task={t}
-                        onAssetReady={handleAssetReady}
-                        disableAutoPolling={disableTaskAutoPolling}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
+            <section>
               {assets.length > 0 && (
-                <section>
+                <>
                   <h2 className="mb-3 text-sm font-medium text-muted-foreground">
                     已生成资产
                   </h2>
                   <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                     {assets.map((a) => (
-                      <AssetCard key={a.uuid} asset={a} />
+                      <AssetCard
+                        key={a.uuid}
+                        asset={a}
+                        task={a.task_id ? taskById.get(a.task_id) : undefined}
+                        disableProgressAutoPolling={disableTaskAutoPolling}
+                      />
                     ))}
                   </div>
-                </section>
+                </>
               )}
-            </div>
+            </section>
           )}
 
           {tab === 'public' && (
@@ -145,7 +131,12 @@ export default function MyAssetsClient({
               ) : (
                 <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                   {publicAssets.map((a) => (
-                    <AssetCard key={a.uuid} asset={a} />
+                    <AssetCard
+                      key={a.uuid}
+                      asset={a}
+                      task={a.task_id ? taskById.get(a.task_id) : undefined}
+                      disableProgressAutoPolling={disableTaskAutoPolling}
+                    />
                   ))}
                 </div>
               )}
