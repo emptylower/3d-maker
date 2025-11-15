@@ -18,7 +18,7 @@ export default function AssetAutoPreviewOBJ({ assetUuid }: { assetUuid: string }
       try {
         setLoading(true)
         setErr(null)
-        const cacheKey = `asset-obj-files:${assetUuid}`
+        const cacheKey = `asset-obj-files:v2:${assetUuid}`
 
         // Try sessionStorage cache first (per-tab)
         if (typeof window !== 'undefined') {
