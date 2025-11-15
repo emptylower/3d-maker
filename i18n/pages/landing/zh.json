@@ -3,10 +3,10 @@
   "theme": "light",
   "header": {
     "brand": {
-      "title": "ShipAny",
+      "title": "AI3DMARK",
       "logo": {
         "src": "/logo.png",
-        "alt": "ShipAny"
+        "alt": "AI3DMARK"
       },
       "url": "/zh"
     },
@@ -17,23 +17,15 @@
         { "title": "广场", "url": "/plaza" }
       ]
     },
-    "buttons": [
-      {
-        "title": "获取 ShipAny",
-        "url": "https://shipany.ai",
-        "target": "_blank",
-        "variant": "link",
-        "icon": "RiArrowRightUpLine"
-      }
-    ],
+    "buttons": [],
     "show_sign": true,
     "show_theme": true,
     "show_locale": false
   },
   "hero": {
     "title": "几小时内快速构建 AI 创业项目，而不是几天",
-    "highlight_text": "Ship Any",
-    "description": "ShipAny 是一个用于构建 AI SaaS 创业项目的 NextJS 模板。<br/>通过丰富的模板和组件快速启动。",
+    "highlight_text": "AI3DMARK",
+    "description": "AI3DMARK 是一个用于构建 AI SaaS 创业项目的 NextJS 模板。<br/>通过丰富的模板和组件快速启动。",
     "announcement": {
       "label": "2025",
       "title": "🎉 新年快乐",
@@ -60,7 +52,7 @@
     "show_badge": false
   },
   "branding": {
-    "title": "ShipAny 建立在巨人的肩膀上",
+    "title": "AI3DMARK 建立在巨人的肩膀上",
     "items": [
       {
         "title": "Next.js",
@@ -101,9 +93,9 @@
   },
   "introduce": {
     "name": "introduce",
-    "title": "什么是 ShipAny",
+    "title": "什么是 AI3DMARK",
     "label": "介绍",
-    "description": "ShipAny 是一个用于构建 AI SaaS 创业项目的 NextJS 模板，内置多种模板和组件。",
+    "description": "AI3DMARK 是一个用于构建 AI SaaS 创业项目的 NextJS 模板，内置多种模板和组件。",
     "image": {
       "src": "/imgs/features/1.png"
     },
@@ -127,7 +119,7 @@
   },
   "benefit": {
     "name": "benefit",
-    "title": "为什么选择 ShipAny",
+    "title": "为什么选择 AI3DMARK",
     "label": "优势",
     "description": "获取启动 AI 创业所需的一切 - 从即用型模板到技术支持。",
     "items": [
@@ -159,7 +151,7 @@
   },
   "usage": {
     "name": "usage",
-    "title": "如何使用 ShipAny 启动项目",
+    "title": "如何使用 AI3DMARK 启动项目",
     "description": "通过三个简单步骤启动您的 AI SaaS 创业项目：",
     "image": {
       "src": "/imgs/features/1.png"
@@ -168,22 +160,22 @@
     "text_align": "center",
     "items": [
       {
-        "title": "获取 ShipAny",
-        "description": "一次性付款购买 ShipAny。查收邮件获取代码和文档。",
+        "title": "开始你的 3D 创作",
+        "description": "登录后前往“创作”页面，上传图片并配置参数，一键生成 3D 模型。",
         "image": {
           "src": "/imgs/features/5.png"
         }
       },
       {
-        "title": "开始您的项目",
-        "description": "阅读文档并克隆 ShipAny 代码。开始构建您的 AI SaaS 创业项目。",
+        "title": "管理你的资产",
+        "description": "在“资产”页面查看生成记录、预览 3D 模型并发布到广场。",
         "image": {
           "src": "/imgs/features/6.png"
         }
       },
       {
-        "title": "定制您的项目",
-        "description": "使用您的数据和内容修改模板。满足特定的 AI 功能需求。",
+        "title": "发布与变现",
+        "description": "将作品发布到广场，展示你的 3D 创作，并通过积分套餐持续创作。",
         "image": {
           "src": "/imgs/features/7.png"
         }

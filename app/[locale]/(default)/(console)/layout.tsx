@@ -17,9 +17,9 @@ export default async function ({ children }: { children: ReactNode }) {
     nav: {
       items: [
         {
-          title: t("user.my_orders"),
-          url: "/my-orders",
-          icon: "RiOrderPlayLine",
+          title: t("my_assets.title"),
+          url: "/my-assets",
+          icon: "RiGalleryLine",
           is_active: false,
         },
         {
@@ -32,12 +32,6 @@ export default async function ({ children }: { children: ReactNode }) {
           title: t("my_invites.title"),
           url: "/my-invites",
           icon: "RiMoneyCnyCircleFill",
-          is_active: false,
-        },
-        {
-          title: t("api_keys.title"),
-          url: "/api-keys",
-          icon: "RiKey2Line",
           is_active: false,
         },
       ],

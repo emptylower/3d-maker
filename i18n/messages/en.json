@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "title": "Ship Any AI SaaS Startups in hours | ShipAny",
-    "description": "ShipAny is a NextJS boilerplate for building AI SaaS startups, Ship Fast with a variety of templates and components.",
-    "keywords": "ShipAny, AI SaaS Boilerplate, NextJS Boilerplate"
+    "title": "Ship Any AI SaaS Startups in hours | AI3DMARK",
+    "description": "AI3DMARK is a NextJS boilerplate for building AI SaaS startups, Ship Fast with a variety of templates and components.",
+    "keywords": "AI3DMARK, AI SaaS Boilerplate, NextJS Boilerplate"
   },
   "user": {
     "sign_in": "Sign In",
@@ -63,6 +63,9 @@
       "updated_at": "Updated At",
       "status": "Status"
     }
+  },
+  "my_assets": {
+    "title": "My Assets"
   },
   "api_keys": {
     "title": "API Keys",

@@ -3,7 +3,7 @@ import { Footer as FooterType } from "@/types/blocks/footer";
 export default function Footer({ footer }: { footer: FooterType }) {
   if (footer.disabled) return null;
 
-  const yearText = footer.copyright || "© 2025 • ShipAny 保留所有权利。";
+  const yearText = footer.copyright || "© 2025 • AI3DMARK 保留所有权利。";
   const agreements = footer.agreement?.items?.length
     ? footer.agreement.items
     : [
@@ -19,11 +19,11 @@ export default function Footer({ footer }: { footer: FooterType }) {
             <p>
               {yearText}
               <a
-                href="https://shipany.ai"
+                href="/"
                 target="_blank"
                 className="px-2 text-primary"
               >
-                build with ShipAny
+                build with AI3DMARK
               </a>
             </p>
             <ul className="flex justify-center gap-4 lg:justify-start">

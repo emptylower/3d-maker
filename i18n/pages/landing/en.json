@@ -3,10 +3,10 @@
   "theme": "light",
   "header": {
     "brand": {
-      "title": "ShipAny",
+      "title": "AI3DMARK",
       "logo": {
         "src": "/logo.png",
-        "alt": "ShipAny"
+        "alt": "AI3DMARK"
       },
       "url": "/"
     },
@@ -45,23 +45,15 @@
         }
       ]
     },
-    "buttons": [
-      {
-        "title": "Get ShipAny",
-        "url": "https://shipany.ai",
-        "target": "_blank",
-        "variant": "link",
-        "icon": "RiArrowRightUpLine"
-      }
-    ],
+    "buttons": [],
     "show_sign": true,
     "show_theme": true,
     "show_locale": true
   },
   "hero": {
-    "title": "Ship Any AI Startups in hours, not days",
-    "highlight_text": "Ship Any",
-    "description": "ShipAny is a NextJS boilerplate for building AI SaaS startups.<br/>Ship Fast with a variety of templates and components.",
+    "title": "Create 3D assets in hours, not days",
+    "highlight_text": "AI3DMARK",
+    "description": "AI3DMARK is a 3D generation website powered by NextJS and hitem3D.<br/>Generate, manage, and share your 3D assets in one place.",
     "announcement": {
       "label": "2025",
       "title": "🎉 Happy New Year",
@@ -88,7 +80,7 @@
     "show_badge": false
   },
   "branding": {
-    "title": "ShipAny is built on the shoulders of giants",
+    "title": "AI3DMARK is built on the shoulders of giants",
     "items": [
       {
         "title": "Next.js",
@@ -129,9 +121,9 @@
   },
   "introduce": {
     "name": "introduce",
-    "title": "What is ShipAny",
+    "title": "What is AI3DMARK",
     "label": "Introduce",
-    "description": "ShipAny is a NextJS boilerplate for building AI SaaS startups. Built in a variety of templates and components.",
+    "description": "AI3DMARK is built on top of a production-ready NextJS template, with integrated auth, storage, and payments.",
     "image": {
       "src": "/imgs/features/1.png"
     },
@@ -155,9 +147,9 @@
   },
   "benefit": {
     "name": "benefit",
-    "title": "Why Choose ShipAny",
+    "title": "Why Choose AI3DMARK",
     "label": "Benefits",
-    "description": "Get everything you need to launch your AI startup - from ready-to-use templates to technical support.",
+    "description": "Get everything you need to generate and manage 3D models – from uploads, credits, to publishing.",
     "items": [
       {
         "title": "Complete Framework",
