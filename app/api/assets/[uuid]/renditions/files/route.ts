@@ -68,17 +68,14 @@ export async function GET(req: Request, ctx: any) {
       }
     }
 
-    // sign
+    // sign / expose via same-origin proxy
     const files: Array<{ name: string; url: string }> = []
     for (const key of keys.filter(k => /\/obj\/[^/]+\.(obj|mtl|png|jpe?g|webp)$/i.test(k))) {
       const rawName = key.substring(prefix.length)
       const cleanName = dropQueryAndHash(rawName)
-      const lower = cleanName.toLowerCase()
-      // For preview subresources, prefer inline to avoid browsers treating as download
-      const inline = (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('.obj') || lower.endsWith('.mtl'))
-      const disp = inline ? `inline; filename=${encodeURIComponent(cleanName)}` : `attachment; filename=${encodeURIComponent(cleanName)}`
-      const { url } = await storage.getSignedUrl({ key, responseDisposition: disp })
-      files.push({ name: cleanName, url })
+      // Use backend proxy route so bucket可以保持私有且不依赖 R2 CORS/预签名
+      const fileUrl = `/api/assets/${asset.uuid}/renditions/file?name=${encodeURIComponent(cleanName)}`
+      files.push({ name: cleanName, url: fileUrl })
     }
 
     const payload: any = { code: 0, data: { files } }

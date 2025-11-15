@@ -58,7 +58,6 @@ describe('api/assets/:uuid/renditions/files cover fallback', () => {
     const json: any = await res.json()
     expect(json.code).toBe(0)
     expect(json.data.files).toHaveLength(2)
-    expect(json.data.files[0].url).toContain('https://signed.example.com/')
+    expect(json.data.files[0].url).toBe('/api/assets/a1/renditions/file?name=model.obj')
   })
 })
-
