@@ -12,7 +12,7 @@ describe('GeneratePanel - portrait mode', () => {
     })
   })
 
-  it('fixes request_type=3, model=scene-portraitv1.5 and 1536 resolution', async () => {
+  it('fixes request_type=3, model=scene-portraitv1.5 and 1536 resolution, format=1(obj)', async () => {
     let seen: Record<string, string> = {}
     ;(global.fetch as any).mockImplementation(async (url: any, init: any) => {
       if (String(url).endsWith('/api/hitem3d/submit')) {
@@ -38,8 +38,7 @@ describe('GeneratePanel - portrait mode', () => {
       expect(seen.request_type).toBe('3')
       expect(seen.model).toBe('scene-portraitv1.5')
       expect(seen.resolution).toBe('1536')
-      expect(seen.format).toBe('2')
+      expect(seen.format).toBe('1')
     })
   })
 })
-

@@ -63,12 +63,14 @@ export default function GenerateForm(props?: { fill?: boolean, __mode?: 'general
     try {
       setSubmitting(true)
       const fd = new FormData()
-      fd.append('request_type', String(textureEffective ? 3 : 1))
+      const requestType = textureEffective ? 3 : 1
+      fd.append('request_type', String(requestType))
       fd.append('model', model)
       fd.append('resolution', resolution)
       fd.append('images', file, file.name || 'image.png')
-      // 默认产出 OBJ（下载友好），后台会自动补齐其它格式（含 GLB 便于预览）
-      fd.append('format', '1')
+      // 默认格式：含纹理使用 OBJ(1)，纯几何使用 STL(3)，后台会自动补齐其它格式（含 GLB 便于预览）
+      const format = requestType === 1 ? 3 : 1
+      fd.append('format', String(format))
       const resp = await fetch('/api/hitem3d/submit', { method: 'POST', body: fd })
       if (resp.status === 401) {
         setMessage('请先登录后再提交')

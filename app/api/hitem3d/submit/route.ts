@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     }
     const formatStr = form.get('format')?.toString()
     const formatNum = formatStr !== undefined ? Number(formatStr) : undefined
-    const format: FileFormat | undefined =
+    const formatProvided: FileFormat | undefined =
       formatNum !== undefined && Number.isFinite(formatNum) && isValidFormat(formatNum)
         ? (formatNum as FileFormat)
         : undefined
@@ -188,8 +188,8 @@ export async function POST(req: Request) {
       model,
       resolution,
       face: faceToUse,
-      // 默认 OBJ，当前端未提供 format 时回退为 1
-      format: (format ?? 1) as FileFormat,
+      // 默认格式：含纹理（request_type!=1）优先 OBJ(1)，纯几何默认 STL(3)
+      format: (formatProvided ?? (request_type === 1 ? 3 : 1)) as FileFormat,
       mesh_url,
     }
 
@@ -276,7 +276,7 @@ export async function POST(req: Request) {
         model_version: model,
         resolution,
         face: faceToUse,
-        format,
+        format: svcInput.format as FileFormat,
         state: 'created',
         credits_charged: isAdmin ? 0 : credits_cost,
         created_at: new Date().toISOString(),

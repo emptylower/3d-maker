@@ -85,8 +85,9 @@ export default function GenerateFormMulti({ mode = "general" as Mode, fill = fal
       fd.append("request_type", String(request_type));
       fd.append("model", model);
       fd.append("resolution", resolution);
-      // 默认产出 OBJ（下载友好），后台会自动补齐其它格式（含 GLB 便于预览）
-      fd.append("format", "1");
+      // 默认格式：含纹理使用 OBJ(1)，纯几何使用 STL(3)，后台会自动补齐其它格式（含 GLB 便于预览）
+      const format = request_type === 1 ? 3 : 1;
+      fd.append("format", String(format));
 
       if (!areExtraViewsPresent) {
         fd.append("images", front, front.name || "front.png");
