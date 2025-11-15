@@ -70,6 +70,7 @@ export async function listAssetsByUser(user_uuid: string, page = 1, limit = 50):
     .from('assets')
     .select('*')
     .eq('user_uuid', user_uuid)
+     .eq('status', 'active')
     .order('created_at', { ascending: false })
     .range(from, to)
   if (error) return []

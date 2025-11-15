@@ -110,7 +110,9 @@ export async function POST(req: Request) {
       file_key_full = key
     }
 
-    // If an existing asset with same task_id exists but without file, update it; else insert new
+    // If an existing asset with same task_id exists but without file, update it;
+    // if none exists, insert new. When an existing asset already has file_key_full,
+    // treat finalize as idempotent and do not create duplicates.
     const existing = await findAssetByTaskId(task.task_id)
     if (existing && !existing.file_key_full) {
       await updateAssetByUuid(existing.uuid, {
@@ -122,7 +124,7 @@ export async function POST(req: Request) {
         user_uuid: task.user_uuid,
         updated_at: new Date().toISOString(),
       } as any)
-    } else {
+    } else if (!existing) {
       await insertAsset({
         uuid: asset_uuid,
         user_uuid: task.user_uuid,
@@ -143,7 +145,10 @@ export async function POST(req: Request) {
       updated_at: new Date().toISOString(),
     } as any)
 
-    return Response.json({ code: 0, data: { asset_uuid } })
+    return Response.json({
+      code: 0,
+      data: { asset_uuid: existing?.uuid || asset_uuid },
+    })
   } catch (e: any) {
     console.error('finalize failed:', e)
     const msg = e?.message || 'finalize failed'
