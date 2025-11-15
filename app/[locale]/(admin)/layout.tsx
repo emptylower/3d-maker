@@ -24,7 +24,7 @@ export default async function AdminLayout({
     brand: {
       title: "AI3DMARK",
       logo: {
-        src: "/logo.png",
+        src: "/logo.svg",
         alt: "AI3DMARK",
       },
       url: "/admin",

@@ -5,7 +5,7 @@
     "brand": {
       "title": "AI3DMARK",
       "logo": {
-        "src": "/logo.png",
+        "src": "/logo.svg",
         "alt": "AI3DMARK"
       },
       "url": "/zh"
@@ -559,7 +559,7 @@
       "title": "AI3DMARK",
       "description": "AI3DMARK 是一个 AI 3D 生成与资产管理平台，帮助创作者在云端管理和分享 3D 作品。",
       "logo": {
-        "src": "/logo.png",
+        "src": "/logo.svg",
         "alt": "AI3DMARK"
       },
       "url": "/"

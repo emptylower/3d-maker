@@ -6,7 +6,7 @@ import Header from '@/components/blocks/header'
 
 const headerConfig = {
   disabled: false,
-  brand: { title: '3D‑MARKER', logo: { src: '/logo.png', alt: 'logo' }, url: '/zh' },
+  brand: { title: '3D‑MARKER', logo: { src: '/logo.svg', alt: 'logo' }, url: '/zh' },
   nav: {
     items: [
       { title: '创作', url: '/generate' },
@@ -40,4 +40,3 @@ describe('Header navigation renders required entries', () => {
     expect(auth.closest('a')?.getAttribute('href')).toBe('/auth/signin')
   })
 })
-

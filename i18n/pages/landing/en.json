@@ -5,7 +5,7 @@
     "brand": {
       "title": "AI3DMARK",
       "logo": {
-        "src": "/logo.png",
+        "src": "/logo.svg",
         "alt": "AI3DMARK"
       },
       "url": "/"
@@ -587,7 +587,7 @@
       "title": "AI3DMARK",
       "description": "AI3DMARK is an AI 3D generation and asset management platform for creators.",
       "logo": {
-        "src": "/logo.png",
+        "src": "/logo.svg",
         "alt": "AI3DMARK"
       },
       "url": "/"
