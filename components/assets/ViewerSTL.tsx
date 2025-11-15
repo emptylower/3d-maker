@@ -80,7 +80,7 @@ export default function ViewerSTL({ src, height = 360 }: { src: string; height?:
         manager.onStart = () => {
           targetRef.current = 10
         }
-        manager.onProgress = (_url, loaded, total) => {
+        manager.onProgress = (_url: string, loaded: number, total: number) => {
           const p = total > 0 ? (loaded / total) * 80 + 10 : 40
           targetRef.current = Math.max(targetRef.current, Math.min(95, p))
         }
@@ -258,4 +258,3 @@ export default function ViewerSTL({ src, height = 360 }: { src: string; height?:
     </div>
   )
 }
-
