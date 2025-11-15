@@ -67,6 +67,9 @@
   "my_assets": {
     "title": "资产管理"
   },
+  "subscriptions": {
+    "title": "订阅管理"
+  },
   "api_keys": {
     "title": "API 密钥",
     "tip": "请妥善保管您的 API 密钥，避免泄露",

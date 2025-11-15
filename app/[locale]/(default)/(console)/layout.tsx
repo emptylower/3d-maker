@@ -23,6 +23,12 @@ export default async function ({ children }: { children: ReactNode }) {
           is_active: false,
         },
         {
+          title: t("subscriptions.title"),
+          url: "/subscriptions",
+          icon: "RiVipCrown2Line",
+          is_active: false,
+        },
+        {
           title: t("my_credits.title"),
           url: "/my-credits",
           icon: "RiBankCardLine",

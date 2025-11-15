@@ -67,6 +67,9 @@
   "my_assets": {
     "title": "My Assets"
   },
+  "subscriptions": {
+    "title": "Subscriptions"
+  },
   "api_keys": {
     "title": "API Keys",
     "tip": "Please keep your apikey safe to avoid leaks",
