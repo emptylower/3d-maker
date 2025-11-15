@@ -17,13 +17,15 @@ export default function MyAssetsClient({
   disableTaskAutoPolling = false,
 }: MyAssetsClientProps) {
   const [tab, setTab] = React.useState<'all' | 'public'>('all')
-  const [tasks, setTasks] = React.useState<TaskOverview[]>(() => {
+  const [tasks] = React.useState<TaskOverview[]>(() => {
     const seen = new Set<string>()
-    return (initialTasks || []).filter((t) => {
-      if (!t.task_id || seen.has(t.task_id)) return false
+    const deduped: TaskOverview[] = []
+    for (const t of initialTasks || []) {
+      if (!t.task_id || seen.has(t.task_id)) continue
       seen.add(t.task_id)
-      return !t.has_asset
-    })
+      deduped.push(t)
+    }
+    return deduped
   })
   const [assets] = React.useState<AssetOverview[]>(() => {
     const seen = new Set<string>()
