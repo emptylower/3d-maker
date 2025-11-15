@@ -18,13 +18,43 @@ export default function AssetAutoPreviewOBJ({ assetUuid }: { assetUuid: string }
       try {
         setLoading(true)
         setErr(null)
+        const cacheKey = `asset-obj-files:${assetUuid}`
+
+        // Try sessionStorage cache first (per-tab)
+        if (typeof window !== 'undefined') {
+          try {
+            const cached = window.sessionStorage.getItem(cacheKey)
+            if (cached) {
+              const parsed = JSON.parse(cached) as FileItem[]
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                if (!cancelled) {
+                  setFiles(parsed)
+                  setLoading(false)
+                  return
+                }
+              }
+            }
+          } catch {
+            // ignore cache parse errors
+          }
+        }
+
         // Hitting the files endpoint materializes OBJ/MTL/textures if missing
         const res = await fetch(`/api/assets/${assetUuid}/renditions/files?format=obj`)
         if (!res.ok) throw new Error(`服务器暂不可用（${res.status}）`)
         const js = await res.json().catch(() => null)
         const list: FileItem[] = js?.data?.files || []
         if (!list.some(f => /\.obj$/i.test(f.name))) throw new Error('OBJ 文件尚未就绪')
-        if (!cancelled) setFiles(list)
+        if (!cancelled) {
+          setFiles(list)
+          try {
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.setItem(cacheKey, JSON.stringify(list))
+            }
+          } catch {
+            // ignore storage errors
+          }
+        }
       } catch (e: any) {
         if (!cancelled) setErr(e?.message || '预览数据获取失败')
       } finally {

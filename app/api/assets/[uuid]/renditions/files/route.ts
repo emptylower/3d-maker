@@ -1,5 +1,5 @@
 import { getUserUuid } from '@/services/user'
-import { findAssetByUuid } from '@/models/asset'
+import { findAssetByUuid, updateAssetByUuid } from '@/models/asset'
 import { findGenerationTaskByTaskId } from '@/models/generation-task'
 import { newStorage } from '@/lib/storage'
 import { buildAssetKey } from '@/lib/storage-key'
@@ -47,6 +47,24 @@ export async function GET(req: Request, ctx: any) {
       const payload: any = { code: -1, message: 'files not available' }
       if (debugEnabled) payload.debug = debugInfo || { note: 'no keys after materialize attempt' }
       return Response.json(payload, { status: 404 })
+    }
+
+    // Best-effort: derive cover_key from first texture when missing
+    if (!asset.cover_key) {
+      try {
+        const imageKeys = (keys || []).filter((k) =>
+          /\/obj\/[^/]+\.(png|jpe?g|webp)$/i.test(k),
+        )
+        if (imageKeys.length > 0) {
+          const preferred =
+            imageKeys.find((k) =>
+              /material_0\.(png|jpe?g|webp)$/i.test(k),
+            ) || imageKeys[0]
+          await updateAssetByUuid(asset.uuid, { cover_key: preferred })
+        }
+      } catch (e) {
+        console.error('update cover_key from obj textures failed:', e)
+      }
     }
 
     // sign
