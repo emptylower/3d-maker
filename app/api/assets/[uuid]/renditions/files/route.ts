@@ -46,7 +46,8 @@ export async function GET(req: Request, ctx: any) {
     if (!keys || keys.length === 0) {
       const payload: any = { code: -1, message: 'files not available' }
       if (debugEnabled) payload.debug = debugInfo || { note: 'no keys after materialize attempt' }
-      return Response.json(payload, { status: 404 })
+      // 使用 202 表示“文件尚在准备中”，避免前端将其视为服务器不可用
+      return Response.json(payload, { status: 202 })
     }
 
     // Best-effort: derive cover_key from first texture when missing
