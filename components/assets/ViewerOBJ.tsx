@@ -160,6 +160,8 @@ export default function ViewerOBJ({
         // Controls
         controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
+        controls.autoRotate = true
+        controls.autoRotateSpeed = 0.6
         controls.target.set(0, 0, 0)
 
         // URL modifier: map requested to signed ones

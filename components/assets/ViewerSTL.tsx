@@ -73,6 +73,8 @@ export default function ViewerSTL({ src, height = 360 }: { src: string; height?:
         controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
         controls.dampingFactor = 0.08
+        controls.autoRotate = true
+        controls.autoRotateSpeed = 0.6
         controls.minDistance = 0.2
         controls.maxDistance = 10
 
